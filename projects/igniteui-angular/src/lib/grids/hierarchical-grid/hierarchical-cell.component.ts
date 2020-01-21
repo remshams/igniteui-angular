@@ -94,16 +94,12 @@ export class IgxHierarchicalGridCellComponent extends IgxGridCellComponent imple
         const key = event.key.toLowerCase();
         if (event.altKey && !this.row.added) {
             const grid = this.gridAPI.grid;
-            const state = this.gridAPI.grid.hierarchicalState;
             const collapse = this.row.expanded && (key === 'left' || key === 'arrowleft' || key === 'up' || key === 'arrowup');
             const expand = !this.row.expanded && (key === 'right' || key === 'arrowright' || key === 'down' || key === 'arrowdown');
             if (collapse) {
-                grid.hierarchicalState = state.filter(v => {
-                    return v.rowID !== this.row.rowID;
-                });
+                grid.collapseRow(this.row.rowID);
             } else if (expand) {
-                state.push({ rowID: this.row.rowID });
-                grid.hierarchicalState = [...state];
+                grid.expandRow(this.row.rowID);
             }
             if (expand || collapse) {
                 const rowID = this.cellID.rowID;

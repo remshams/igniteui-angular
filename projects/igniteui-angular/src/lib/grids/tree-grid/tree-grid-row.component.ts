@@ -66,7 +66,11 @@ export class IgxTreeGridRowComponent extends IgxRowDirective<IgxTreeGridComponen
      * ```
      */
     set expanded(value: boolean) {
-        (this.gridAPI as IgxTreeGridAPIService).trigger_row_expansion_toggle(this._treeRow, value);
+        if (value) {
+            this.grid.expandRow(this.rowID);
+        } else {
+            this.grid.collapseRow(this.rowID);
+        }
     }
 
     /**

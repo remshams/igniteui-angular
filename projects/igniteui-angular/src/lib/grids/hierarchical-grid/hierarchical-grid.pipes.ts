@@ -17,7 +17,7 @@ export class IgxGridHierarchicalPipe implements PipeTransform {
 
     public transform(
         collection: any,
-        state = [],
+        state = new Map<any, boolean>(),
         id: string,
         primaryKey: any,
         childKeys: string[],
@@ -32,7 +32,7 @@ export class IgxGridHierarchicalPipe implements PipeTransform {
         return result;
     }
 
-    public addHierarchy<T>(grid, data: T[], state, primaryKey, childKeys: string[]): T[] {
+    public addHierarchy<T>(grid, data: T[], state: Map<any, boolean>, primaryKey, childKeys: string[]): T[] {
         const result = [];
 
         data.forEach((v) => {

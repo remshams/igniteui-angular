@@ -106,15 +106,7 @@ export class IgxHierarchicalRowComponent extends IgxRowDirective<IgxHierarchical
         }
         const grid = this.gridAPI.grid;
         this.endEdit(grid.rootGrid);
-        const state = this.gridAPI.grid.hierarchicalState;
-        if (!this.expanded) {
-            state.push({ rowID: this.rowID });
-            grid.hierarchicalState = [...state];
-        } else {
-            grid.hierarchicalState = state.filter(v => {
-                return v.rowID !== this.rowID;
-            });
-        }
+        grid.toggleRow(this.rowID);
         grid.cdr.detectChanges();
     }
 
