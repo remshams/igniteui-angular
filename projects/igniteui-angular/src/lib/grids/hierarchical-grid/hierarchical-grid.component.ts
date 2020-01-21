@@ -114,7 +114,7 @@ export class IgxHierarchicalGridComponent extends IgxHierarchicalGridBaseDirecti
     @Input()
     @DeprecateProperty(`'hierarchicalState' property is deprecated. Use 'expansionStates' instead.`)
     public get hierarchicalState() {
-        const res = [...this.expansionStates.entries()].filter(({ 1: v }) => v === true).map(([k]) => k);
+        const res = [...(this.expansionStates.entries() as any)].filter(({ 1: v }) => v === true).map(([k]) => k);
         return res;
     }
     public set hierarchicalState(val) {
@@ -610,7 +610,7 @@ export class IgxHierarchicalGridComponent extends IgxHierarchicalGridBaseDirecti
      */
     public hasExpandedRecords() {
         const state = this.expansionStates;
-        const hasExpandedEntry = [...state.entries()].find(({ 1: v }) => v === true) !== undefined;
+        const hasExpandedEntry = [...(state.entries() as any)].find(({ 1: v }) => v === true) !== undefined;
         return !!hasExpandedEntry || state.size === this.data.length;
     }
 
