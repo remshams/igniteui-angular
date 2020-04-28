@@ -1,1 +1,21 @@
-/* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+@import url('https://fonts.googleapis.com/css?family=Titillium+Web:300,400,600,700');
+@import '../../igniteui-angular/src/lib/core/styles/themes/index';
+
+$primary: #731963 !default;
+$secondary: #ce5712 !default;
+
+$app-palette: igx-palette($primary, $secondary);
+
+/* autoprefixer grid: on */
+
+@include igx-core();
+@include igx-theme($app-palette);
+
+
+html, body {
+  height: 100%;
+}
+.content p {
+  margin: 15px;
+}

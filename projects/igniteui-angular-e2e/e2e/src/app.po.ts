@@ -1,11 +1,27 @@
-import { browser, by, element } from 'protractor';
+import { browser, by, element, WebElementPromise, promise, WebElement, ElementFinder } from 'protractor';
 
 export class AppPage {
   navigateTo(): Promise<unknown> {
-    return browser.get(browser.baseUrl) as Promise<unknown>;
+    return browser.get('/cellEditing') as Promise<unknown>;
   }
 
-  getTitleText(): Promise<string> {
-    return element(by.css('app-root .content span')).getText() as Promise<string>;
+  getGrid(): ElementFinder {
+    return element(by.css('igx-grid'));
   }
+
+  getAllRows() {
+    const grid = this.getGrid();
+    grid.all(by.css('igx-grid-row'));
+  }
+
+  getRow(index: number): ElementFinder{
+    const grid = this.getGrid();
+    return grid.all(by.css('igx-grid-row')).get(index);
+  }
+
+  getCell(rowIndex: number, cellIndex: number) {
+    const row = this.getRow(rowIndex);
+    return row.all(by.css('igx-grid-cell')).get(cellIndex);
+  }
+
 }
