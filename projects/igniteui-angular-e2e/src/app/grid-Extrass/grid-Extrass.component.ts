@@ -6,10 +6,10 @@ import {
 } from 'igniteui-angular';
 
 @Component({
-    selector: 'app-grid-cellediting',
-    templateUrl: 'grid-cellEditing.component.html'
+    selector: 'app-grid-extras',
+    templateUrl: 'grid-extras.component.html'
 })
-export class GridCellEditingComponent {
+export class GridExtrasComponent {
     @ViewChild('grid1', { read: IgxGridComponent, static: true })
     public gridWithPK: IgxGridComponent;
 

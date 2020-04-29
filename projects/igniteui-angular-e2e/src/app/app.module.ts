@@ -12,11 +12,14 @@ import { HttpClientModule } from '@angular/common/http';
 import { SharedModule } from './shared.module';
 import { routing } from './app-routing';
 import { GridCellEditingComponent } from './grid-cellEditing/grid-cellEditing.component';
+import { IgxExtrasModule } from 'projects/igniteui-angular-extras/src/public-api';
+import { GridExtrasComponent } from './grid-Extrass/grid-Extrass.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    GridCellEditingComponent
+    GridCellEditingComponent,
+    GridExtrasComponent
   ],
   imports: [
     BrowserModule,
@@ -36,7 +39,8 @@ import { GridCellEditingComponent } from './grid-cellEditing/grid-cellEditing.co
     routing,
     HammerModule,
     IgxDateTimeEditorModule,
-    IgxButtonModule
+    IgxButtonModule,
+    IgxExtrasModule
 ],
   providers: [],
   bootstrap: [AppComponent]
