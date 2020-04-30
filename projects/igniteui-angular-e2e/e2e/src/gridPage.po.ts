@@ -10,6 +10,20 @@ export class GridPage {
         grid.all(by.css('igx-grid-row'));
     }
 
+    getVerticalScroll(): ElementFinder {
+        const grid = this.getGrid();
+        return grid.all(by.css('.igx-vhelper--vertical')).get(0);
+    }
+
+    moveVerticalScrollDown(scroll: number) {
+        const vScroll = this.getVerticalScroll();
+        browser.driver.actions()
+        .mouseDown(vScroll, )
+        .mouseMove(vScroll, {x: 15, y: scroll})
+        .mouseUp()
+        .perform();
+    }
+
     getRow(index: number): ElementFinder {
         const grid = this.getGrid();
         return grid.all(by.css('igx-grid-row')).get(index);

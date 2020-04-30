@@ -1,32 +1,37 @@
 import { AppPage } from './app.po';
 import { browser, logging, element, by } from 'protractor';
 
-describe('workspace-project App', () => {
+describe('Testing grid prof of concept', () => {
   let page: AppPage;
 
   beforeEach(() => {
     page = new AppPage();
   });
 
-  it('test cells selection', () => {
+  it('test scrolling grid down', () => {
     page.navigateTo();
     browser.wait(function () {
       return element(by.css('igx-grid')).isPresent();
     });
-    const cell = page.getCell(0, 0);
+    let cell = page.getCell(0, 0);
     expect(cell.getText()).toEqual('1');
-    cell.click();
-    expect(cell.getAttribute('class')).toContain('igx-grid__td--selected');
 
-    const cell2 = page.getCell(2, 2);
-    browser.driver.actions()
-      .mouseDown(cell)
-      .mouseMove(cell2)
-      .mouseUp()
-      .perform();
-      browser.debugger();
-    expect(cell2.getAttribute('class')).toContain('igx-grid__td--selected');
-    browser.driver.sleep(5000);
+    page.moveVerticalScrollDown(400);
+    browser.driver.sleep(1000);
+    cell = page.getCell(1, 0);
+    expect(cell.getText()).toEqual('9');
+  });
+
+  it('test cell selection', () => {
+    page.navigateTo();
+    browser.wait(function () {
+      return element(by.css('igx-grid')).isPresent();
+    });
+    const cell1 = page.getCell(0, 0);
+    const cell2 = page.getCell(3, 3);
+    page.selectCellsRange(cell1, cell2);
+
+    page.verifyCellsRegionSelected(0, 3, 0, 3);
   });
 
   afterEach(async () => {
@@ -36,4 +41,7 @@ describe('workspace-project App', () => {
       level: logging.Level.SEVERE,
     } as logging.Entry));
   });
+
+
 });
+
