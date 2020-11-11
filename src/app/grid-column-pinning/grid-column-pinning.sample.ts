@@ -32,6 +32,7 @@ export class GridColumnPinningSampleComponent implements OnInit {
     grid1: IgxGridComponent;
 
     data: any[];
+    localData: any[];
     columns: any[];
 
     onChange() {
@@ -54,7 +55,7 @@ export class GridColumnPinningSampleComponent implements OnInit {
         this.columns = [
             { field: 'ID', width: '200px', hidden: false },
             { field: 'CompanyName', width: '200px' },
-            { field: 'ContactName', width: '200px', pinned: false },
+            { field: 'ContactName', width: '200px', pinned: true },
             { field: 'ContactTitle', width: '300px', pinned: false },
             { field: 'Address', width: '250px' },
             { field: 'City', width: '200px' },
@@ -94,7 +95,10 @@ export class GridColumnPinningSampleComponent implements OnInit {
             { 'ID': 'FRANR', 'CompanyName': 'France restauration', 'ContactName': 'Carine Schmitt', 'ContactTitle': 'Marketing Manager', 'Address': '54, rue Royale', 'City': 'Nantes', 'Region': null, 'PostalCode': '44000', 'Country': 'France', 'Phone': '40.32.21.21', 'Fax': '40.32.21.20' },
             { 'ID': 'FRANS', 'CompanyName': 'Franchi S.p.A.', 'ContactName': 'Paolo Accorti', 'ContactTitle': 'Sales Representative', 'Address': 'Via Monte Bianco 34', 'City': 'Torino', 'Region': null, 'PostalCode': '10100', 'Country': 'Italy', 'Phone': '011-4988260', 'Fax': '011-4988261' }
         ];
-        this.selectionMode = GridSelectionMode.none;
+        this.localData = this.generateDataUneven(10, 3);
+        this.localData[0].hasChild = false;
+        this.localData[1].hasChild = false;
+        this.selectionMode = GridSelectionMode.multiple;
         // tslint:enable:max-line-length
     }
 
@@ -123,6 +127,31 @@ export class GridColumnPinningSampleComponent implements OnInit {
         !this.grid1.isRecordPinned(row.rowData) ?
          this.grid1.pinRow(row.rowData) :
          this.grid1.unpinRow(row.rowData);
+    }
+
+    generateDataUneven(count: number, level: number, parendID: string = null) {
+        const prods = [];
+        const currLevel = level;
+        let children;
+        for (let i = 0; i < count; i++) {
+            const rowID = parendID ? parendID + i : i.toString();
+            if (level > 0) {
+                // Have child grids for row with even id less rows by not multiplying by 2
+                children = this.generateDataUneven(((i % 2) + 1) * Math.round(count / 3), currLevel - 1, rowID);
+            }
+            prods.push({
+                ID: rowID,
+                ChildLevels: currLevel,
+                ProductName: 'Product: A' + i,
+                Col1: i,
+                Col2: i,
+                Col3: i,
+                childData: children,
+                childData2: i % 2 ? [] : children,
+                hasChild: true
+            });
+        }
+        return prods;
     }
 
 }
