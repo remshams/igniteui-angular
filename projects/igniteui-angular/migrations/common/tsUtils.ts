@@ -229,6 +229,7 @@ export function getTypeDefinitionAtPosition(langServ: tss.LanguageService, entry
     }
     let typeDefs = langServ.getTypeDefinitionAtPosition(entryPath, definition.textSpan.start);
     if (!typeDefs) {
+        if (!definition.fileName.endsWith('.ts')) { return null; } // remove
         // ts property referred in an internal/external template
         const classDeclaration = langServ
             .getProgram()

@@ -511,7 +511,7 @@ export class UpdateChanges {
 
     private updateMembers() {
         if (this.membersChanges && this.membersChanges.changes.length) {
-            const dirs = [...this.templateFiles, ...this.tsFiles];
+            const dirs = [...this.tsFiles, ...this.templateFiles];
             for (const entryPath of dirs) {
                 this.updateClassMembers(entryPath, this.membersChanges);
             }
@@ -520,11 +520,62 @@ export class UpdateChanges {
 
     private getDefaultProjectForFile(entryPath: string): tss.server.Project {
         const scriptInfo = this.projectService.getOrCreateScriptInfoForNormalizedPath(tss.server.asNormalizedPath(entryPath), false);
-        this.projectService.openClientFile(scriptInfo.fileName);
-        const project = this.projectService.findProject(scriptInfo.containingProjects[0].projectName);
-        project.addMissingFileRoot(scriptInfo.fileName);
+        let project = (this.projectService.getDefaultProjectForFile(scriptInfo.fileName, false)
+            || this.projectService.externalProjects[0]) as tss.server.ExternalProject;
+        if (project && !project.containsFile(scriptInfo.fileName)) {
+            scriptInfo.detachAllProjects();
+            scriptInfo.attachToProject(project);
+            project.addMissingFileRoot(scriptInfo.fileName);
+        }
+        if (entryPath.endsWith('.ts') && project) {
+            debugger;
+            this.resolveModuleImports(project, entryPath);
+            // this.projectService.openClientFile(scriptInfo.fileName); // ??
+            // const test = this.projectService.findProject(scriptInfo.containingProjects[0].projectName);
+        }
+        if (!project) {
+            this.projectService.openExternalProject(
+                new ExternalProject('externalProject', [{
+                    fileName: entryPath, hasMixedContent: true
+                }], { target: tss.server.protocol.ScriptTarget.ES2016 })); // get target from tsconfig?
+            project = <tss.server.ExternalProject>this.projectService.findProject(scriptInfo.containingProjects[0].projectName);
+            // project.setTypeAcquisition({ enable: true, include: [], exclude: [] }); ??
+            // project.resolveModuleNames();
+        }
+
+        // let langServ = project.getLanguageService();
+        // langServ.getProgram().getSourceFile(entryPath).get
+
         return project;
     }
+
+    private resolveModuleImports(project: tss.server.ExternalProject, entryPath: string) {
+        const source = project.getLanguageService().getProgram().getSourceFile(entryPath);
+        const imports: tss.ImportDeclaration[] = source
+            .statements
+            .filter(s => s.kind === tss.SyntaxKind.ImportDeclaration) as tss.ImportDeclaration[];
+        const dir = __dirname; // process.cwd();
+        for (const _import of imports) {
+            // second to last child is always the module name
+            const secondToLastChild = _import.getChildCount() - 2;
+            let moduleName = _import.getChildren()[secondToLastChild].getText();
+            moduleName = /([^'].+\w+)+/g.exec(moduleName)[0]; // TODO: resolve relative imports in SErverHost
+
+            // TODO: attach projectService.logger
+            tss.server.Project.resolveModule(moduleName, process.cwd(), this.projectService.host, console.log);
+            // resolve modules for specific project?
+            // project.resolveModuleNames([], entryPath);
+        }
+    }
+}
+
+class ExternalProject implements tss.server.protocol.ExternalProject {
+    typingOptions?: tss.TypeAcquisition;
+    typeAcquisition?: tss.TypeAcquisition;
+
+    constructor(public projectFileName: string,
+        public rootFiles: tss.server.protocol.ExternalFile[],
+        public options: tss.server.protocol.ExternalProjectCompilerOptions) { }
 }
 
 export enum BindingType {

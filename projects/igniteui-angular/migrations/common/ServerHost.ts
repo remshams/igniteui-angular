@@ -71,7 +71,7 @@ export class ServerHost implements ts.server.ServerHost {
     public require(initialPath: string, moduleName: string) {
         try {
             const modulePath = require.resolve(moduleName, {
-                paths: [initialPath],
+                paths: [initialPath], // TODO: resolve relative imports
             });
             return {
                 module: require(modulePath),
