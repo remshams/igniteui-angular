@@ -1,6 +1,8 @@
 // tslint:disable-next-line:no-implicit-dependencies
 import * as ts from 'typescript';
 import * as tss from 'typescript/lib/tsserverlibrary';
+import * as fs from 'fs';
+import * as path from 'path';
 import { Tree } from '@angular-devkit/schematics';
 import { MemberChange } from './schema';
 import { escapeRegExp } from './util';
@@ -258,3 +260,19 @@ export function isMemberIgniteUI(change: MemberChange, langServ: tss.LanguageSer
 }
 
 //#endregion
+
+export function findFile(root: string, name: string): string {
+    for (const item of fs.readdirSync(root)) {
+        if (item === 'node_modules') { continue; }
+        const subPath = path.join(root, item);
+        if (fs.lstatSync(subPath).isDirectory()) {
+            const fileName = findFile(subPath, name);
+            if (fileName) { return fileName; }
+        }
+        if (item.trim() === name.trim()) {
+            return path.join(root, name);
+        }
+    }
+
+    return null;
+}

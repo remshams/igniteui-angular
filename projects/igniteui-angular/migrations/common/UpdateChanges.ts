@@ -518,6 +518,14 @@ export class UpdateChanges {
         }
     }
 
+    // private getDefaultProjectForFile(entryPath: string): tss.server.Project {
+    //     const scriptInfo = this.projectService.getOrCreateScriptInfoForNormalizedPath(tss.server.asNormalizedPath(entryPath), false);
+    //     this.projectService.openClientFile(scriptInfo.fileName);
+    //     const project = this.projectService.findProject(scriptInfo.containingProjects[0].projectName);
+    //     project.addMissingFileRoot(scriptInfo.fileName);
+    //     return project;
+    // }
+
     private getDefaultProjectForFile(entryPath: string): tss.server.Project {
         const scriptInfo = this.projectService.getOrCreateScriptInfoForNormalizedPath(tss.server.asNormalizedPath(entryPath), false);
         let project = (this.projectService.getDefaultProjectForFile(scriptInfo.fileName, false)
@@ -528,7 +536,6 @@ export class UpdateChanges {
             project.addMissingFileRoot(scriptInfo.fileName);
         }
         if (entryPath.endsWith('.ts') && project) {
-            debugger;
             this.resolveModuleImports(project, entryPath);
             // this.projectService.openClientFile(scriptInfo.fileName); // ??
             // const test = this.projectService.findProject(scriptInfo.containingProjects[0].projectName);
@@ -537,7 +544,12 @@ export class UpdateChanges {
             this.projectService.openExternalProject(
                 new ExternalProject('externalProject', [{
                     fileName: entryPath, hasMixedContent: true
-                }], { target: tss.server.protocol.ScriptTarget.ES2016 })); // get target from tsconfig?
+                }], {
+                    target: tss.server.protocol.ScriptTarget.ES2015, // get target from tsconfig?
+                    allowJs: true,
+                    experimentalDecorators: true,
+                    'ignoreDiagnostics': [1219] // ??
+                }));
             project = <tss.server.ExternalProject>this.projectService.findProject(scriptInfo.containingProjects[0].projectName);
             // project.setTypeAcquisition({ enable: true, include: [], exclude: [] }); ??
             // project.resolveModuleNames();
@@ -554,12 +566,11 @@ export class UpdateChanges {
         const imports: tss.ImportDeclaration[] = source
             .statements
             .filter(s => s.kind === tss.SyntaxKind.ImportDeclaration) as tss.ImportDeclaration[];
-        const dir = __dirname; // process.cwd();
         for (const _import of imports) {
             // second to last child is always the module name
             const secondToLastChild = _import.getChildCount() - 2;
             let moduleName = _import.getChildren()[secondToLastChild].getText();
-            moduleName = /([^'].+\w+)+/g.exec(moduleName)[0]; // TODO: resolve relative imports in SErverHost
+            moduleName = /([^'].+\w+)+/g.exec(moduleName)[0]; // TODO: resolve relative imports in ServerHost
 
             // TODO: attach projectService.logger
             tss.server.Project.resolveModule(moduleName, process.cwd(), this.projectService.host, console.log);

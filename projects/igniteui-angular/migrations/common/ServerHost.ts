@@ -1,5 +1,7 @@
 import { Tree } from '@angular-devkit/schematics';
 import * as ts from 'typescript/lib/tsserverlibrary';
+import * as _path from 'path';
+import { findFile } from './tsUtils';
 
 export class ServerHost implements ts.server.ServerHost {
     readonly args: string[];
@@ -70,8 +72,21 @@ export class ServerHost implements ts.server.ServerHost {
 
     public require(initialPath: string, moduleName: string) {
         try {
-            const modulePath = require.resolve(moduleName, {
-                paths: [initialPath], // TODO: resolve relative imports
+            let modulePath = null;
+            if (moduleName.startsWith('.')) {
+                // WIP: relative import
+                initialPath = initialPath.substring(0, initialPath.lastIndexOf('/'));
+                moduleName = _path.parse(moduleName).base + '.ts';
+                const absolutePath = findFile(initialPath, moduleName);
+                return {
+                    module: require(absolutePath),
+                    error: undefined
+                };
+            }
+
+            // imports from node_modules
+            modulePath = require.resolve(moduleName, {
+                paths: [initialPath],
             });
             return {
                 module: require(modulePath),
