@@ -141,6 +141,7 @@ import { GridFinJSComponent } from './grid-finjs/grid-finjs.component';
 import { MainComponent } from './grid-finjs/main.component';
 import { ControllerComponent } from './grid-finjs/controllers.component';
 import { CommonModule } from '@angular/common';
+import { TreeSampleComponent } from './tree/tree.sample';
 
 const components = [
     ActionStripSampleComponent,
@@ -236,6 +237,7 @@ const components = [
     AnimationsSampleComponent,
     ShadowsSampleComponent,
     TypographySampleComponent,
+    TreeSampleComponent,
     RadioSampleComponent,
     TooltipSampleComponent,
     HierarchicalGridSampleComponent,
