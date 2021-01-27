@@ -16,20 +16,43 @@ import { InteractionMode } from '../core/enums';
 import { DateRangeType } from '../core/dates/dateRange';
 import { IgxIconModule } from '../icon/public_api';
 import {
+    IgxOverlayService,
     OverlayCancelableEventArgs,
     OverlayClosingEventArgs,
     OverlayEventArgs
 } from '../services/public_api';
 
+const CSS_CLASS_DATE_PICKER = 'igx-date-picker';
+const CSS_CLASS_INPUTGROUP = 'igx-input-group';
+const CSS_CLASS_INPUT = '.igx-input-group__input';
+const CSS_CLASS_INPUTGROUP_DISABLED = 'igx-input-group--disabled';
+const CSS_CLASS_INPUT_DATE = '.igx-date-picker__input-date';
+const CSS_CLASS_OVERLAY_MODAL_WRAPPER = 'igx-overlay__wrapper--modal';
+const CSS_CLASS_OVERLAY_CONTENT = 'igx-overlay__content';
+const CSS_CLASS_CALENDAR_CONTAINER = 'igx-calendar-container';
+const CSS_CLASS_CALENDAR_PICKER_DATE = 'igx-calendar-picker__date';
+const CSS_CLASS_CALENDAR_PICKER_SELECTED_DATE = 'igx-calendar__date--selected';
+const CSS_CLASS_CALENDAR_YEAR = 'igx-calendar__year';
+const CSS_CLASS_CALENDAR_MONTH = 'igx-calendar__month';
+const CSS_CLASS_DATE_PICKER_DROPDOWN = 'igx-date-picker--dropdown';
+const CSS_CLASS_PREFIX = 'igx-prefix';
+const CSS_CLASS_SUFFIX = 'igx-suffix';
+const CSS_CLASS_ICON = '.igx-icon';
+
+
+
 describe('IgxDatePicker', () => {
+    let fixture: ComponentFixture<any>;
+    let datePicker: IgxDatePickerComponent;
+    let input: DebugElement;
+    let overlayWrapper: Element;
+
     configureTestSuite();
     beforeAll(waitForAsync(() => {
         TestBed.configureTestingModule({
             declarations: [
                 IgxDatePickerTestComponent,
-                IgxDatePickerProjectedLabelTestComponent,
                 IgxDatePickerWithWeekStartComponent,
-                IgxDatePickerWithCustomFormatterComponent,
                 IgxDatePickerWithPassedDateComponent,
                 IgxDatePickerWIthLocaleComponent,
                 IgxDatePickerNgModelComponent,
@@ -39,7 +62,7 @@ describe('IgxDatePicker', () => {
                 IgxDropDownDatePickerRetemplatedComponent,
                 IgxDatePickerOpeningComponent,
                 IgxDatePickerReactiveFormComponent,
-                IgxDatePickerDropdownButtonsComponent
+                // IgxDatePickerDropdownButtonsComponents
             ],
             imports: [IgxDatePickerModule, FormsModule, ReactiveFormsModule, NoopAnimationsModule, IgxInputGroupModule, IgxCalendarModule,
                 IgxButtonModule, IgxTextSelectionModule, IgxIconModule]
@@ -50,6 +73,663 @@ describe('IgxDatePicker', () => {
     afterEach(() => {
         UIInteractions.clearOverlay();
     });
+
+    describe('Unit tests: ', () => {
+        let ngModel;
+        let overlay;
+        let element;
+        let cdr;
+        let moduleRef;
+        let injector;
+        let inputGroup: IgxInputGroupComponent;
+        let renderer2: Renderer2;
+
+        function customFormatter(date: Date) {
+            return `${date.getFullYear()}/${date.getMonth()}/${date.getDate()}`;
+        }
+
+        it('should emit onSelection and valueChange on selection', () => {
+            element = {};
+            datePicker = new IgxDatePickerComponent(null, element, null, null, null, null);
+            spyOn(datePicker.onSelection, 'emit');
+            spyOn(datePicker.valueChange, 'emit');
+            const newDate: Date = new Date(2016, 4, 6);
+            datePicker.selectDate(newDate);
+
+            expect(datePicker.onSelection.emit).toHaveBeenCalledTimes(1);
+            expect(datePicker.valueChange.emit).toHaveBeenCalledTimes(1);
+            expect(datePicker.valueChange.emit).toHaveBeenCalledWith(newDate);
+            expect(datePicker.value).toBe(newDate);
+        });
+
+        it('should clear value and emit valueChange with deselectDate()', () => {
+            element = {};
+            datePicker = new IgxDatePickerComponent(null, element, null, null, null, null);
+            spyOn(datePicker.valueChange, 'emit');
+
+            const date = new Date(Date.now());
+            datePicker.selectDate(date);
+
+            expect(datePicker.value).toBe(date);
+            expect(datePicker.valueChange.emit).toHaveBeenCalledTimes(1);
+
+            datePicker.deselectDate();
+            expect(datePicker.value).toBe(null);
+            expect(datePicker.valueChange.emit).toHaveBeenCalledTimes(2);
+        });
+
+
+        it('should set locale correctly', () => {
+            element = {};
+            datePicker = new IgxDatePickerComponent(null, element, null, null, null, null);
+            const date = new Date(2017, 7, 7);
+            datePicker.value = date;
+            const locale = 'de-DE';
+            datePicker.locale = (locale as any);
+
+            const dateConvertedToDeLocale = date.toLocaleDateString('de-DE');
+            expect(datePicker.displayData).toBe(dateConvertedToDeLocale);
+        });
+
+        it('should set custom formatter correctly', () => {
+            element = {};
+            datePicker = new IgxDatePickerComponent(null, element, null, null, null, null);
+
+            const date = new Date(2017, 7, 7);
+            const formattedDate = customFormatter(date);
+
+            datePicker.value = date;
+            datePicker.formatter = (_: Date) => (
+                `${_.getFullYear()}/${_.getMonth()}/${_.getDate()}`
+            );
+            expect(datePicker.displayData).toEqual(formattedDate);
+        });
+
+        it('should be able to de/select date-API methods', () => {
+            element = {};
+            datePicker = new IgxDatePickerComponent(null, element, null, null, null, null);
+
+            const date = new Date(Date.now());
+            datePicker.selectDate(date);
+
+            expect(datePicker.value).toBe(date);
+
+            datePicker.deselectDate();
+            expect(datePicker.value).toBe(null);
+        });
+
+        it('should show/hide overlay on opening/closing', () => {
+            const mockOverlayService = jasmine.createSpyObj('IgxOverlayService', ['attach', 'show', 'hide']);
+            element = {};
+            datePicker = new IgxDatePickerComponent(mockOverlayService, element, null, null, null, null);
+            spyOn(mockOverlayService, 'attach');
+            spyOn(mockOverlayService, 'show');
+            spyOn(mockOverlayService, 'hide');
+
+            datePicker.openDialog();
+            expect(mockOverlayService.attach).toHaveBeenCalled();
+            expect(mockOverlayService.show).toHaveBeenCalled();
+
+            datePicker.closeCalendar();
+            expect(mockOverlayService.hide).toHaveBeenCalled();
+        });
+
+        describe('Control value accessor unit tests', () => {
+            beforeEach(() => {
+                ngModel = {
+                    control: { touched: false, dirty: false, validator: null },
+                    valid: false,
+                    statusChanges: new EventEmitter(),
+                };
+                overlay = {
+                    onOpening: new EventEmitter<OverlayCancelableEventArgs>(),
+                    onOpened: new EventEmitter<OverlayEventArgs>(),
+                    onClosed: new EventEmitter<OverlayEventArgs>(),
+                    onClosing: new EventEmitter<OverlayClosingEventArgs>()
+                };
+                element = {};
+                cdr = {
+                    markForCheck: () => { },
+                    detectChanges: () => { },
+                    detach: () => { },
+                    reattach: () => { }
+                };
+                moduleRef = {};
+                injector = { get: () => ngModel };
+                inputGroup = new IgxInputGroupComponent(null, null, null, document);
+                renderer2 = jasmine.createSpyObj('Renderer2', ['setAttribute'], [{}, 'aria-labelledby', 'test-label-id-1']);
+                spyOn(renderer2, 'setAttribute').and.callFake(() => {
+                });
+            });
+
+            it('should initialize date picker with required correctly', () => {
+                datePicker = new IgxDatePickerComponent(overlay, element, cdr, moduleRef, injector, renderer2);
+                datePicker['_inputGroup'] = inputGroup;
+                datePicker['_inputDirectiveUserTemplates'] = new QueryList();
+                spyOnProperty(datePicker, 'inputGroupElement').and.returnValue(null);
+                ngModel.control.validator = () => ({ required: true });
+                datePicker.ngOnInit();
+                datePicker.ngAfterViewInit();
+                datePicker.ngAfterViewChecked();
+
+                expect(datePicker).toBeDefined();
+                expect(inputGroup.isRequired).toBeTruthy();
+            });
+
+            it('should initialize date picker with required correctly with user template input-group', () => {
+                datePicker = new IgxDatePickerComponent(overlay, element, cdr, moduleRef, injector, renderer2);
+                datePicker['_inputGroupUserTemplate'] = inputGroup;
+                datePicker['_inputDirectiveUserTemplates'] = new QueryList();
+                spyOnProperty(datePicker, 'inputGroupElement').and.returnValue(null);
+                ngModel.control.validator = () => ({ required: true });
+                datePicker.ngOnInit();
+                datePicker.ngAfterViewInit();
+                datePicker.ngAfterViewChecked();
+
+                expect(datePicker).toBeDefined();
+                expect(inputGroup.isRequired).toBeTruthy();
+            });
+
+            it('should update inputGroup isRequired correctly', () => {
+                datePicker = new IgxDatePickerComponent(overlay, element, cdr, moduleRef, injector, renderer2);
+                datePicker['_inputGroup'] = inputGroup;
+                datePicker['_inputDirectiveUserTemplates'] = new QueryList();
+                spyOnProperty(datePicker, 'inputGroupElement').and.returnValue(null);
+                datePicker.ngOnInit();
+                datePicker.ngAfterViewInit();
+                datePicker.ngAfterViewChecked();
+
+                expect(datePicker).toBeDefined();
+                expect(inputGroup.isRequired).toBeFalsy();
+
+                ngModel.control.validator = () => ({ required: true });
+                ngModel.statusChanges.emit();
+                expect(inputGroup.isRequired).toBeTruthy();
+
+                ngModel.control.validator = () => ({ required: false });
+                ngModel.statusChanges.emit();
+                expect(inputGroup.isRequired).toBeFalsy();
+            });
+        });
+    });
+
+    describe('General tests: ', () => {
+        configureTestSuite();
+        beforeAll(waitForAsync(() => {
+            TestBed.configureTestingModule({
+                declarations: [
+                    IgxDatePickerTestComponent
+                ],
+                imports: [
+                    IgxDatePickerModule
+                ]
+            }).compileComponents();
+        }));
+        beforeEach(() => {
+            fixture = TestBed.createComponent(IgxDatePickerTestComponent);
+            fixture.detectChanges();
+            datePicker = fixture.componentInstance.datePicker;
+            input = fixture.debugElement.query(By.css(`.${CSS_CLASS_INPUTGROUP}`));
+        });
+
+        it('should emit open/close events', fakeAsync(() => {
+            spyOn(datePicker.onOpened, 'emit');
+            spyOn(datePicker.onClosed, 'emit');
+
+            input.triggerEventHandler('click', UIInteractions.getMouseEvent('click'));
+            tick();
+            fixture.detectChanges();
+
+            expect(datePicker.onOpened.emit).toHaveBeenCalled();
+            expect(datePicker.onOpened.emit).toHaveBeenCalledWith(datePicker);
+
+            overlayWrapper = document.getElementsByClassName(CSS_CLASS_OVERLAY_MODAL_WRAPPER)[0];
+            UIInteractions.simulateClickEvent(overlayWrapper);
+            tick();
+            fixture.detectChanges();
+
+            expect(datePicker.onClosed.emit).toHaveBeenCalled();
+            expect(datePicker.onClosed.emit).toHaveBeenCalledWith(datePicker);
+        }));
+
+        it('should be able to toggle labelVisibility', () => {
+            let label = fixture.debugElement.query(By.directive(IgxLabelDirective));
+            expect(label).not.toBeNull();
+
+            fixture.componentInstance.labelVisibility = false;
+            fixture.detectChanges();
+
+            label = fixture.debugElement.query(By.directive(IgxLabelDirective));
+            expect(label).toBeNull();
+
+            fixture.componentInstance.labelVisibility = true;
+            fixture.detectChanges();
+            expect(label).not.toBeNull();
+
+        });
+
+        it('should display default and custom label', () => {
+            let label = fixture.debugElement.query(By.directive(IgxLabelDirective)).nativeElement;
+            expect(label.innerText).toEqual('Date');
+
+            fixture.componentInstance.customLabelVisibility = true;
+            fixture.detectChanges();
+
+            label = fixture.debugElement.query(By.directive(IgxLabelDirective)).nativeElement;
+            expect(label.innerText).toEqual(fixture.componentInstance.customLabel);
+
+            fixture.componentInstance.labelVisibility = false;
+            fixture.componentInstance.customLabelVisibility = false;
+            fixture.detectChanges();
+            label = fixture.debugElement.query(By.directive(IgxLabelDirective));
+            expect(label).toBeNull();
+
+            fixture.componentInstance.customLabelVisibility = true;
+            fixture.detectChanges();
+            label = fixture.debugElement.query(By.directive(IgxLabelDirective)).nativeElement;
+            expect(label.innerText).toEqual(fixture.componentInstance.customLabel);
+        });
+
+        it('should be able to set editorTabIndex', () => {
+            datePicker.editorTabIndex = 3;
+            fixture.detectChanges();
+            input = fixture.debugElement.query(By.css(CSS_CLASS_INPUT));
+            expect(input.nativeElement.tabIndex).toBe(3);
+        });
+
+        it('should set weekStart correctly', () => {
+            datePicker.weekStart = 1;
+
+            datePicker.openDialog();
+            fixture.detectChanges();
+
+            const firstWeekDayValue = (document.getElementsByClassName('igx-calendar__label')[0] as HTMLElement).innerText.trim();
+            const expectedResult = 'Mon';
+
+            expect(firstWeekDayValue).toBe(expectedResult);
+        });
+
+        it('should not alter hours, minutes, seconds and milliseconds when changing date.', () => {
+            const date = new Date(2030, 1, 1, 15, 16, 17, 18);
+            datePicker.value = date;
+            fixture.detectChanges();
+
+            datePicker.openDialog();
+            fixture.detectChanges();
+
+            const targetDay = 15;
+            const fromDate = datePicker.calendar.daysView.dates.filter(
+                d => d.date.date.getDate() === targetDay)[0];
+            fromDate.nativeElement.click();
+            fixture.detectChanges();
+
+            expect(datePicker.value.getFullYear()).toBe(date.getFullYear());
+            expect(datePicker.value.getMonth()).toBe(date.getMonth());
+            expect(datePicker.value.getDate()).toBe(targetDay);
+            expect(datePicker.value.getHours()).toBe(date.getHours());
+            expect(datePicker.value.getMinutes()).toBe(date.getMinutes());
+            expect(datePicker.value.getSeconds()).toBe(date.getSeconds());
+            expect(datePicker.value.getMilliseconds()).toBe(date.getMilliseconds());
+        });
+
+        it('#3595 - should be able to select year', fakeAsync(() => {
+            datePicker.openDialog();
+            fixture.detectChanges();
+
+            let year = document.getElementsByClassName(CSS_CLASS_CALENDAR_PICKER_DATE)[1];
+            year.dispatchEvent(UIInteractions.getMouseEvent('click'));
+            tick();
+            fixture.detectChanges();
+
+            const firstYear = document.getElementsByClassName(CSS_CLASS_CALENDAR_YEAR)[1];
+            const expectedResult = (firstYear as HTMLElement).innerText.trim();
+            firstYear.dispatchEvent(UIInteractions.getMouseEvent('click'));
+            tick();
+            fixture.detectChanges();
+
+            year = document.getElementsByClassName(CSS_CLASS_CALENDAR_PICKER_DATE)[1];
+            expect((year as HTMLElement).innerText).toBe(expectedResult);
+        }));
+
+        it('#3595 - should be able to select month', fakeAsync(() => {
+            datePicker.value = new Date(2019, 2, 10);
+            tick();
+            fixture.detectChanges();
+
+            datePicker.openDialog();
+            fixture.detectChanges();
+            tick(350);
+
+            let month = document.getElementsByClassName(CSS_CLASS_CALENDAR_PICKER_DATE)[0];
+            month.dispatchEvent(UIInteractions.getMouseEvent('click'));
+            tick();
+            fixture.detectChanges();
+
+            const firstMonth = document.getElementsByClassName(CSS_CLASS_CALENDAR_MONTH)[0];
+            const expectedResult = (firstMonth as HTMLElement).innerText;
+
+            firstMonth.dispatchEvent(UIInteractions.getMouseEvent('click'));
+            tick();
+            fixture.detectChanges();
+
+            month = document.getElementsByClassName(CSS_CLASS_CALENDAR_PICKER_DATE)[0];
+            expect((month as HTMLElement).innerText.trim()).toBe(expectedResult.trim());
+        }));
+
+        it('should get edit element correctly', () => {
+            const editElement = fixture.debugElement.query(By.css(CSS_CLASS_INPUT_DATE)).nativeElement;
+            expect(datePicker.getEditElement()).toBe(editElement);
+        });
+
+        it('should be able to set component id', () => {
+            const domDatePicker = fixture.debugElement.query(By.css(CSS_CLASS_DATE_PICKER)).nativeElement;
+
+            expect(datePicker.id).toContain('igx-date-picker-');
+            expect(domDatePicker.id).toContain('igx-date-picker-');
+
+            const customId = 'customDatePicker';
+            datePicker.id = customId;
+            fixture.detectChanges();
+
+            expect(datePicker.id).toBe(customId);
+            expect(domDatePicker.id).toBe(customId);
+        });
+
+    });
+
+    describe('Initialization and rendering tests: ', () => {
+        configureTestSuite();
+        beforeAll(waitForAsync(() => {
+            TestBed.configureTestingModule({
+                declarations: [
+                    IgxDatePickerTestComponent
+                ],
+                imports: [
+                    IgxDatePickerModule
+                ]
+            }).compileComponents();
+        }));
+        beforeEach(() => {
+            fixture = TestBed.createComponent(IgxDatePickerTestComponent);
+            fixture.detectChanges();
+            datePicker = fixture.componentInstance.datePicker;
+            input = fixture.debugElement.query(By.css(`.${CSS_CLASS_INPUTGROUP}`));
+        });
+
+        xit('Handling keyboard navigation with `space`(open) and `esc`(close) buttons', fakeAsync(() => {
+            const datePickerDom = fixture.debugElement.query(By.css('igx-date-picker'));
+            UIInteractions.triggerKeyDownEvtUponElem('space', datePickerDom.nativeElement, false);
+            fixture.detectChanges();
+            // console.log(datePickerDom);
+
+            // debugger;
+            // datePickerDom.triggerEventHandler('keydown', { key: 'space' });
+
+            // //UIInteractions.triggerEventHandlerKeyDown('Space', datePickerDom);
+            // //tick();
+            // fixture.detectChanges();
+
+            expect(datePicker.collapsed).toBeFalse();
+
+
+            // const overlayDiv = document.getElementsByClassName('igx-overlay__wrapper--modal')[0];
+            // expect(overlayDiv).toBeDefined();
+            // expect(overlayDiv.classList.contains('igx-overlay__wrapper--modal')).toBeTruthy();
+
+            // UIInteractions.triggerKeyDownEvtUponElem('Escape', overlayDiv, true);
+            // flush();
+            // fixture.detectChanges();
+
+            // const overlays = document.getElementsByClassName('igx-overlay__wrapper--modal');
+            // expect(overlays.length).toEqual(0);
+        }));
+
+
+        describe('Dialog mode: ', () => {
+            it('should show/hide overlay modal on opening/closing', fakeAsync(() => {
+                datePicker.openDialog();
+                fixture.detectChanges();
+                expect(datePicker.collapsed).toBeFalse();
+
+                overlayWrapper = document.getElementsByClassName(CSS_CLASS_OVERLAY_MODAL_WRAPPER)[0];
+                let calendar = document.getElementsByTagName(CSS_CLASS_CALENDAR_CONTAINER)[0];
+                expect(overlayWrapper).toBeDefined();
+                expect(calendar).toBeDefined();
+
+                UIInteractions.triggerKeyDownEvtUponElem('Escape', overlayWrapper, true);
+                tick();
+                fixture.detectChanges();
+
+                overlayWrapper = document.getElementsByClassName(CSS_CLASS_OVERLAY_MODAL_WRAPPER)[0];
+                calendar = document.getElementsByTagName(CSS_CLASS_CALENDAR_CONTAINER)[0];
+                expect(overlayWrapper).toBeUndefined();
+                expect(calendar).toBeUndefined();
+            }));
+
+            it('should focus the today date', fakeAsync(() => {
+                datePicker.openDialog();
+                fixture.detectChanges();
+                tick(200);
+
+                const todayDate = datePicker.calendar.daysView.dates.find(d => d.isToday);
+                expect(document.activeElement).toEqual(todayDate.nativeElement);
+            }));
+
+            it('should retain focus on the input when modal date picker has been closed via `Escape` key', () => {
+                datePicker.openDialog();
+                fixture.detectChanges();
+                expect(datePicker.collapsed).toBeFalse();
+
+                overlayWrapper = document.getElementsByClassName(CSS_CLASS_OVERLAY_MODAL_WRAPPER)[0];
+                UIInteractions.triggerKeyDownEvtUponElem('Escape', overlayWrapper, true);
+                fixture.detectChanges();
+
+                input = fixture.debugElement.query(By.directive(IgxInputDirective));
+                overlayWrapper = document.getElementsByClassName(CSS_CLASS_OVERLAY_MODAL_WRAPPER)[0];
+                expect(overlayWrapper).toBeUndefined();
+                expect(input.nativeElement).toEqual(document.activeElement);
+            });
+
+            it('should retain focus on the input when modal date picker has been closed with outside click', () => {
+                datePicker.openDialog();
+                fixture.detectChanges();
+                expect(datePicker.collapsed).toBeFalse();
+
+                overlayWrapper = document.getElementsByClassName(CSS_CLASS_OVERLAY_MODAL_WRAPPER)[0];
+                UIInteractions.simulateClickAndSelectEvent(overlayWrapper);
+                fixture.detectChanges();
+
+                input = fixture.debugElement.query(By.directive(IgxInputDirective));
+                overlayWrapper = document.getElementsByClassName(CSS_CLASS_OVERLAY_MODAL_WRAPPER)[0];
+                expect(overlayWrapper).toBeUndefined();
+                expect(input.nativeElement).toEqual(document.activeElement);
+            });
+
+            it('should retain focus on the input after a date has been selected', fakeAsync(() => {
+                datePicker.openDialog();
+                fixture.detectChanges();
+                expect(datePicker.collapsed).toBeFalse();
+
+                const dateElemToSelect = document.getElementsByClassName('igx-calendar__date-content')[10];
+                UIInteractions.simulateClickAndSelectEvent(dateElemToSelect);
+                tick(350);
+                fixture.detectChanges();
+
+                input = fixture.debugElement.query(By.directive(IgxInputDirective));
+                expect(datePicker.collapsed).toBeTrue();
+                expect(input.nativeElement).toEqual(document.activeElement);
+            }));
+
+        });
+
+        describe('Dropdown mode: ', () => {
+            beforeEach(() => {
+                datePicker.mode = InteractionMode.DropDown;
+                fixture.detectChanges();
+            });
+
+            it('should open dropdown below the input by default if there is enough space', () => {
+                const inputGroup = document.getElementsByTagName(CSS_CLASS_INPUTGROUP);
+                const inputGroupRect = inputGroup[0].getBoundingClientRect() as DOMRect;
+                const inputGroupTop = inputGroupRect.top;
+
+                datePicker.openDialog();
+                fixture.detectChanges();
+
+                const calendar = document.getElementsByTagName(CSS_CLASS_CALENDAR_CONTAINER);
+                const calendarRect = calendar[0].getBoundingClientRect() as DOMRect;
+                const calendarTop = calendarRect.top;
+
+                expect(inputGroupTop).toBeLessThan(calendarTop);
+            });
+
+            it('should open dropdwn above the input when there is not enough space below', () => {
+                datePicker.element.nativeElement.style = 'position: fixed; bottom: 150px';
+                fixture.detectChanges();
+
+                const inputGroup = document.getElementsByTagName(CSS_CLASS_INPUTGROUP);
+                const inputGroupRect = inputGroup[0].getBoundingClientRect() as DOMRect;
+                const inputGroupTop = inputGroupRect.top;
+
+                datePicker.openDialog();
+                fixture.detectChanges();
+
+                const calendar = document.getElementsByTagName(CSS_CLASS_CALENDAR_CONTAINER);
+                const calendarRect = calendar[0].getBoundingClientRect() as DOMRect;
+                const calendarTop = calendarRect.top;
+
+                expect(inputGroupTop).toBeGreaterThan(calendarTop);
+            });
+
+            it('should show/hide overlay dropdown on opening/closing', fakeAsync(() => {
+                datePicker.openDialog();
+                fixture.detectChanges();
+
+                const overlayDiv = document.getElementsByClassName(CSS_CLASS_OVERLAY_CONTENT)[0];
+                expect(overlayDiv).toBeDefined();
+
+                const dropDown = document.getElementsByClassName(CSS_CLASS_DATE_PICKER_DROPDOWN);
+                expect(dropDown.length).toBe(1);
+                expect(dropDown[0]).not.toBeNull();
+
+                UIInteractions.triggerKeyDownEvtUponElem('Escape', dropDown[0], false);
+                tick();
+                fixture.detectChanges();
+
+                const overlays = document.getElementsByClassName(CSS_CLASS_OVERLAY_CONTENT);
+                expect(overlays.length).toEqual(0);
+            }));
+
+            it('should apply properly disabled class to the input', () => {
+                const dom = fixture.debugElement;
+                const inputGroup = dom.query(By.css(`.${CSS_CLASS_INPUTGROUP}`));
+                expect(inputGroup.nativeElement.classList.contains(CSS_CLASS_INPUTGROUP_DISABLED)).toBeFalsy();
+
+                datePicker.disabled = true;
+                fixture.detectChanges();
+                expect(inputGroup.nativeElement.classList.contains(CSS_CLASS_INPUTGROUP_DISABLED)).toBeTruthy();
+            });
+
+        });
+    });
+
+    describe('Dropdown mode: ', () => {
+        configureTestSuite();
+        beforeAll(waitForAsync(() => {
+            TestBed.configureTestingModule({
+                declarations: [
+                    IgxDatePickerTestComponent
+                ],
+                imports: [
+                    IgxDatePickerModule
+                ]
+            }).compileComponents();
+        }));
+        beforeEach(() => {
+            fixture = TestBed.createComponent(IgxDatePickerTestComponent);
+            fixture.detectChanges();
+            datePicker = fixture.componentInstance.datePicker;
+            input = fixture.debugElement.query(By.css(CSS_CLASS_INPUTGROUP));
+
+            datePicker.mode = InteractionMode.DropDown;
+            fixture.detectChanges();
+        });
+
+        it('should open/close drop-down with `space`/`esc` keys', fakeAsync(() => {
+            datePicker.onSpaceClick(UIInteractions.getKeyboardEvent('keydown', 'space'));
+            fixture.detectChanges();
+
+            expect(datePicker.collapsed).toBeFalsy();
+
+            const dropDown = document.getElementsByClassName(CSS_CLASS_DATE_PICKER_DROPDOWN)[0];
+            UIInteractions.triggerKeyDownEvtUponElem('Escape', dropDown, false);
+            tick();
+            fixture.detectChanges();
+
+            expect(datePicker.collapsed).toBeTruthy();
+        }));
+
+        it('should open/close drop-down with `alt + down`/up` keys', fakeAsync(() => {
+            datePicker.onKeyDown(UIInteractions.getKeyboardEvent('keydown', 'ArrowDown', true));
+            fixture.detectChanges();
+
+            expect(datePicker.collapsed).toBeFalsy();
+
+            const dropDown = document.getElementsByClassName(CSS_CLASS_DATE_PICKER_DROPDOWN)[0];
+            UIInteractions.triggerKeyDownEvtUponElem('ArrowUp', dropDown, false, true);
+            tick();
+            fixture.detectChanges();
+
+            expect(datePicker.collapsed).toBeTruthy();
+        }));
+
+        it('should open the dropdown on date icon click', () => {
+            const dateIcon = fixture.debugElement.query(By.css(CSS_CLASS_PREFIX));
+            dateIcon.triggerEventHandler('click', UIInteractions.getMouseEvent('click'));
+            fixture.detectChanges();
+
+            expect(datePicker.collapsed).toBeFalsy();
+        });
+
+        it('should reset value on clear button click', () => {
+            datePicker.value = new Date();
+            fixture.detectChanges();
+
+            spyOn(datePicker.valueChange, 'emit');
+            input = fixture.debugElement.query(By.directive(IgxInputDirective));
+            const clearIcon = fixture.debugElement.query(By.css(CSS_CLASS_SUFFIX));
+            clearIcon.triggerEventHandler('click', UIInteractions.getMouseEvent('click'));
+            fixture.detectChanges();
+
+            expect(datePicker.valueChange.emit).toHaveBeenCalled();
+            expect(datePicker.valueChange.emit).toHaveBeenCalledWith(null);
+            expect(datePicker.value).toEqual(null);
+            expect(input.nativeElement.innerText).toEqual('');
+        });
+
+        it('should select date in calendar correctly when value is set', () => {
+            const date = new Date(2011, 9, 20);
+            datePicker.value = date;
+            fixture.detectChanges();
+            datePicker.openDialog();
+            fixture.detectChanges();
+
+            const selectedSpans = document.getElementsByClassName(CSS_CLASS_CALENDAR_PICKER_SELECTED_DATE);
+            expect(selectedSpans.length).toBe(1);
+            expect((selectedSpans[0] as HTMLElement).innerText.trim()).toBe(date.getDate().toString());
+
+            const dateHeader = document.getElementsByClassName(CSS_CLASS_CALENDAR_PICKER_DATE);
+            expect(dateHeader.length).toBe(2);
+            const month = dateHeader[0].innerHTML.trim();
+            const year = dateHeader[1].innerHTML.trim();
+            expect(month).toBe(date.toLocaleString('default', { month: 'short' }));
+            expect(year).toBe(date.getFullYear().toString());
+        });
+
+    });
+
+
+
 
     describe('Base Tests', () => {
         // configureTestSuite();
@@ -62,77 +742,6 @@ describe('IgxDatePicker', () => {
             fixture.detectChanges();
         });
 
-        it('Initialize a datepicker component', () => {
-            expect(fixture.componentInstance).toBeDefined();
-            expect(datePicker.displayData).toBe('');
-        });
-
-        it('Initialize a datepicker component with id', () => {
-            const domDatePicker = fixture.debugElement.query(By.css('igx-date-picker')).nativeElement;
-
-            expect(datePicker.id).toContain('igx-date-picker-');
-            expect(domDatePicker.id).toContain('igx-date-picker-');
-
-            datePicker.id = 'customDatePicker';
-            fixture.detectChanges();
-
-            expect(datePicker.id).toBe('customDatePicker');
-            expect(domDatePicker.id).toBe('customDatePicker');
-        });
-
-        it('Datepicker open/close event', async () => {
-            const dom = fixture.debugElement;
-            const target = dom.query(By.css('.igx-date-picker__input-date'));
-
-            spyOn(datePicker.onOpened, 'emit');
-            spyOn(datePicker.onClosed, 'emit');
-
-            UIInteractions.simulateClickAndSelectEvent(target);
-            fixture.detectChanges();
-            await wait();
-
-            expect(datePicker.onOpened.emit).toHaveBeenCalled();
-            expect(datePicker.onOpened.emit).toHaveBeenCalledWith(datePicker);
-
-            const overlayDiv = document.getElementsByClassName('igx-overlay__wrapper--modal')[0];
-            expect(overlayDiv).toBeDefined();
-            expect(overlayDiv.classList.contains('igx-overlay__wrapper--modal')).toBeTruthy();
-            overlayDiv.dispatchEvent(new Event('click'));
-
-            fixture.detectChanges();
-            await wait();
-
-            expect(datePicker.onClosed.emit).toHaveBeenCalled();
-            expect(datePicker.onClosed.emit).toHaveBeenCalledWith(datePicker);
-        });
-
-        it('Datepicker onSelection and valueChange events and selectDate method propagation', () => {
-            spyOn(datePicker.onSelection, 'emit');
-            spyOn(datePicker.valueChange, 'emit');
-            const newDate: Date = new Date(2016, 4, 6);
-            datePicker.selectDate(newDate);
-            fixture.detectChanges();
-
-            expect(datePicker.onSelection.emit).toHaveBeenCalled();
-            expect(datePicker.valueChange.emit).toHaveBeenCalled();
-            expect(datePicker.valueChange.emit).toHaveBeenCalledWith(newDate);
-            expect(datePicker.value).toBe(newDate);
-        });
-
-        it('check disabled state', () => {
-            const dom = fixture.debugElement;
-            const inputGroup = dom.query(By.css('.igx-input-group'));
-            const disabled = dom.query(By.css('.igx-input-group--disabled'));
-            expect(disabled).toBeNull();
-            expect(inputGroup.nativeElement.classList.contains('igx-input-group--disabled')).toBeFalsy();
-
-            datePicker.disabled = true;
-            fixture.detectChanges();
-
-            const disabledGroup = dom.query(By.css('.igx-input-group--disabled'));
-            expect(disabledGroup).toBeDefined();
-            expect(inputGroup.nativeElement.classList.contains('igx-input-group--disabled')).toBeTruthy();
-        });
 
         it('should not be able to toggle & clear when disabled', () => {
             const date = new Date();
@@ -150,72 +759,6 @@ describe('IgxDatePicker', () => {
             expect(datePicker.value).toEqual(date);
         });
 
-        it('When labelVisibility is set to false the label should not be visible', () => {
-            let label = fixture.debugElement.query(By.directive(IgxLabelDirective));
-
-            expect(label.nativeElement.innerText).toBe(datePicker.label);
-
-            fixture.componentInstance.labelVisibility = false;
-            fixture.detectChanges();
-
-            label = fixture.debugElement.query(By.directive(IgxLabelDirective));
-            expect(label).toBeNull();
-        });
-
-        it('When update label property it should reflect on the label text of the datepicker', () => {
-            let label = fixture.debugElement.query(By.directive(IgxLabelDirective));
-            expect(label.nativeElement.innerText).toEqual(datePicker.label);
-
-            const expectedResult = 'new label';
-            datePicker.label = expectedResult;
-            fixture.detectChanges();
-
-            label = fixture.debugElement.query(By.directive(IgxLabelDirective));
-            expect(label.nativeElement.innerText).toEqual(expectedResult);
-        });
-
-        it('Visualize the label of the datepicker when initially is hidden', () => {
-            fixture.componentInstance.labelVisibility = false;
-            fixture.detectChanges();
-
-            let label = fixture.debugElement.query(By.directive(IgxLabelDirective));
-            expect(label).toBeNull();
-
-            fixture.componentInstance.labelVisibility = true;
-            fixture.detectChanges();
-
-            label = fixture.debugElement.query(By.directive(IgxLabelDirective));
-            expect(label).not.toBeNull();
-        });
-
-        it('should display default and custom label', () => {
-            const fixtureProjectedLabel = TestBed.createComponent(IgxDatePickerProjectedLabelTestComponent);
-            const dom = fixtureProjectedLabel.debugElement;
-            const testComponent = fixtureProjectedLabel.componentInstance;
-            fixtureProjectedLabel.detectChanges();
-
-            let label = dom.query(By.directive(IgxLabelDirective)).nativeElement.innerText;
-            expect(label).toEqual(testComponent.customLabel);
-
-            testComponent.customLabelVisibility = false;
-            fixtureProjectedLabel.detectChanges();
-
-            label = dom.query(By.directive(IgxLabelDirective)).nativeElement.innerText;
-            expect(label).toEqual('Date');
-
-            testComponent.labelVisibility = false;
-            fixtureProjectedLabel.detectChanges();
-            testComponent.customLabelVisibility = false;
-            fixtureProjectedLabel.detectChanges();
-            label = dom.query(By.directive(IgxLabelDirective));
-            fixtureProjectedLabel.detectChanges();
-            expect(label).toBeNull();
-
-            testComponent.customLabelVisibility = true;
-            fixtureProjectedLabel.detectChanges();
-            label = dom.query(By.directive(IgxLabelDirective)).nativeElement.innerText;
-            expect(label).toEqual(testComponent.customLabel);
-        });
 
         it('Handling keyboard navigation with `space`(open) and `esc`(close) buttons', fakeAsync(() => {
             const datePickerDom = fixture.debugElement.query(By.css('igx-date-picker'));
@@ -234,86 +777,13 @@ describe('IgxDatePicker', () => {
             expect(overlays.length).toEqual(0);
         }));
 
-        it('When modal datepicker is closed via `Escape` Key and the dialog disappear, the focus should remain on the input',
-            fakeAsync(() => {
-                const datePickerDom = fixture.debugElement.query(By.css('igx-date-picker'));
-                let overlayToggle = document.getElementsByClassName('igx-overlay__wrapper--modal');
-                expect(overlayToggle.length).toEqual(0);
 
-                UIInteractions.triggerKeyDownEvtUponElem('space', datePickerDom.nativeElement, false);
-                flush();
-                fixture.detectChanges();
 
-                overlayToggle = document.getElementsByClassName('igx-overlay__wrapper--modal');
-                expect(overlayToggle[0]).not.toBeNull();
-                expect(overlayToggle[0]).not.toBeUndefined();
 
-                UIInteractions.triggerKeyDownEvtUponElem('Escape', overlayToggle[0], true);
-                flush();
-                fixture.detectChanges();
 
-                const input = fixture.debugElement.query(By.directive(IgxInputDirective)).nativeElement;
-                overlayToggle = document.getElementsByClassName('igx-overlay__wrapper--modal');
-                expect(overlayToggle[0]).toEqual(undefined);
-                expect(input).toEqual(document.activeElement);
-            }));
 
-        it('When a modal datepicker is closed via outside click, the focus should remain on the input',
-            fakeAsync(() => {
-                const datePickerDom = fixture.debugElement.query(By.css('igx-date-picker'));
-                let overlayToggle = document.getElementsByClassName('igx-overlay__wrapper--modal');
-                expect(overlayToggle.length).toEqual(0);
 
-                UIInteractions.triggerKeyDownEvtUponElem('space', datePickerDom.nativeElement, false);
-                flush();
-                fixture.detectChanges();
 
-                overlayToggle = document.getElementsByClassName('igx-overlay__wrapper--modal');
-                expect(overlayToggle[0]).not.toBeNull();
-                expect(overlayToggle[0]).not.toBeUndefined();
-
-                UIInteractions.simulateClickAndSelectEvent(overlayToggle[0]);
-                flush();
-                fixture.detectChanges();
-
-                const input = fixture.debugElement.query(By.directive(IgxInputDirective)).nativeElement;
-                overlayToggle = document.getElementsByClassName('igx-overlay__wrapper--modal');
-                expect(overlayToggle[0]).toEqual(undefined);
-                expect(input).toEqual(document.activeElement);
-            }));
-
-        it('When datepicker is closed upon selecting a date, the focus should remain on the input',
-            fakeAsync(() => {
-                const datePickerDom = fixture.debugElement.query(By.css('igx-date-picker'));
-                let overlayToggle = document.getElementsByClassName('igx-overlay__wrapper--modal');
-                expect(overlayToggle.length).toEqual(0);
-
-                UIInteractions.triggerKeyDownEvtUponElem('space', datePickerDom.nativeElement, false);
-                flush();
-                fixture.detectChanges();
-
-                overlayToggle = document.getElementsByClassName('igx-overlay__wrapper--modal');
-                expect(overlayToggle[0]).not.toBeNull();
-                expect(overlayToggle[0]).not.toBeUndefined();
-
-                // select a date
-                const dateElemToSelect = document.getElementsByClassName('igx-calendar__date-content')[10];
-                UIInteractions.simulateClickAndSelectEvent(dateElemToSelect);
-                flush();
-                fixture.detectChanges();
-
-                const input = fixture.debugElement.query(By.directive(IgxInputDirective)).nativeElement;
-                overlayToggle = document.getElementsByClassName('igx-overlay__wrapper--modal');
-                expect(overlayToggle[0]).toEqual(undefined);
-                expect(input).toEqual(document.activeElement);
-            }));
-
-            it('should allow setting editorTabIndex', () => {
-                fixture.componentInstance.datePicker.editorTabIndex = 3;
-                fixture.detectChanges();
-                const input = fixture.debugElement.query(By.directive(IgxInputDirective)).nativeElement;
-                expect(input.tabIndex).toBe(3);
-            });
     });
 
     describe('ARIA Tests', () => {
@@ -488,22 +958,6 @@ describe('IgxDatePicker', () => {
             expect(input).toEqual(document.activeElement);
         }));
 
-    it('Datepicker week start day (Monday)', () => {
-        const fixture = TestBed.createComponent(IgxDatePickerWithWeekStartComponent);
-        fixture.detectChanges();
-
-        const dom = fixture.debugElement;
-        const datePickerTarget = dom.query(By.css('.igx-date-picker__input-date'));
-
-        UIInteractions.simulateClickAndSelectEvent(datePickerTarget);
-        fixture.detectChanges();
-
-        const firstDayValue = (document.getElementsByClassName('igx-calendar__label')[0] as HTMLElement).innerText.trim();
-        const expectedResult = 'Mon';
-
-        expect(firstDayValue).toBe(expectedResult);
-    });
-
     it('Retemplated calendar in date picker', () => {
         const fixture = TestBed.createComponent(IgxDatePickerCustomizedComponent);
         fixture.detectChanges();
@@ -550,30 +1004,6 @@ describe('IgxDatePicker', () => {
         expect((buttons[0] as HTMLElement).innerText).toBe('TEST');
     });
 
-    it('locale propagate calendar value (de-DE)', () => {
-        const fixture = TestBed.createComponent(IgxDatePickerWIthLocaleComponent);
-        fixture.detectChanges();
-
-        const datePicker = fixture.componentInstance.datePicker;
-        const dateConvertedToDeLocale = fixture.componentInstance.date.toLocaleDateString('de-DE');
-
-        expect(datePicker.displayData).toBe(dateConvertedToDeLocale);
-    });
-
-    it('Datepicker custom formatter', () => {
-        const fixture = TestBed.createComponent(IgxDatePickerWithCustomFormatterComponent);
-        fixture.detectChanges();
-
-        const compInstance = fixture.componentInstance;
-        const datePicker = compInstance.datePicker;
-        const dom = fixture.debugElement;
-        const inputTarget = dom.query(By.css('.igx-date-picker__input-date')).nativeElement;
-        const date = new Date(2017, 7, 7);
-        const formattedDate = compInstance.customFormatter(date);
-
-        expect(inputTarget.value).toEqual(formattedDate);
-    });
-
     it('Value should respond when is bound through ngModel and selection through selectDate method is made.', fakeAsync(() => {
         const fix = TestBed.createComponent(IgxDatePickerNgModelComponent);
         const datePicker = fix.componentInstance.datePicker;
@@ -603,174 +1033,6 @@ describe('IgxDatePicker', () => {
         expect(dom.query(By.css('.igx-icon'))).toBeNull();
         expect(inputGroup.nativeElement.classList.contains('igx-input-group--invalid')).toBe(false);
     }));
-
-    it('Should be able to deselect using the API.', () => {
-        const fix = TestBed.createComponent(IgxDatePickerTestComponent);
-        const datePicker = fix.componentInstance.datePicker;
-        fix.detectChanges();
-
-        const date = new Date(Date.now());
-        datePicker.selectDate(date);
-        fix.detectChanges();
-
-        expect(datePicker.value).toBe(date);
-
-        datePicker.deselectDate();
-        fix.detectChanges();
-
-        expect(datePicker.value).toBe(null);
-    });
-
-    it('Should not alter hours, minutes, seconds and milliseconds when changing date.', () => {
-        const fixture = TestBed.createComponent(IgxDatePickerTestComponent);
-        const debugElement = fixture.debugElement;
-        const datePicker = fixture.componentInstance.datePicker;
-        const date = new Date(2030, 1, 1, 15, 16, 17, 18);
-        datePicker.value = date;
-        fixture.detectChanges();
-
-        const datePickerTarget = debugElement.query(By.css('.igx-date-picker__input-date'));
-        datePickerTarget.nativeElement.dispatchEvent(new Event('click', { bubbles: true }));
-        fixture.detectChanges();
-
-        const targetDate = 15;
-        const fromDate = datePicker.calendar.daysView.dates.filter(
-            d => d.date.date.getDate() === targetDate)[0];
-        fromDate.nativeElement.click();
-        fixture.detectChanges();
-
-        expect(datePicker.value.getFullYear()).toBe(date.getFullYear());
-        expect(datePicker.value.getMonth()).toBe(date.getMonth());
-        expect(datePicker.value.getDate()).toBe(targetDate);
-        expect(datePicker.value.getHours()).toBe(date.getHours());
-        expect(datePicker.value.getMinutes()).toBe(date.getMinutes());
-        expect(datePicker.value.getSeconds()).toBe(date.getSeconds());
-        expect(datePicker.value.getMilliseconds()).toBe(date.getMilliseconds());
-    });
-
-    it('Should focus the today date', fakeAsync(() => {
-        const fixture = TestBed.createComponent(IgxDatePickerTestComponent);
-        const datePicker = fixture.componentInstance.datePicker;
-        fixture.detectChanges();
-        const dom = fixture.debugElement;
-
-        const target = dom.query(By.css('.igx-date-picker__input-date'));
-        UIInteractions.simulateClickAndSelectEvent(target);
-        fixture.detectChanges();
-        tick(200);
-
-        const todayDate = datePicker.calendar.daysView.dates.find(d => d.isToday);
-
-        expect(document.activeElement).toEqual(todayDate.nativeElement);
-    }));
-
-    it('#3595 - Should be able to change year', fakeAsync(() => {
-        const fixture = TestBed.createComponent(IgxDatePickerTestComponent);
-        fixture.detectChanges();
-
-        const dom = fixture.debugElement;
-        const target = dom.query(By.css('.igx-date-picker__input-date'));
-
-        UIInteractions.simulateClickAndSelectEvent(target);
-        fixture.detectChanges();
-
-        let year = document.getElementsByClassName('igx-calendar-picker__date')[1];
-        year.dispatchEvent(new Event('click'));
-        tick();
-        fixture.detectChanges();
-
-        const firstYear = document.getElementsByClassName('igx-calendar__year')[1];
-        const expectedResult = (firstYear as HTMLElement).innerText.trim();
-        firstYear.dispatchEvent(new Event('click'));
-        tick();
-        fixture.detectChanges();
-
-        year = document.getElementsByClassName('igx-calendar-picker__date')[1];
-        expect((year as HTMLElement).innerText).toBe(expectedResult);
-    }));
-
-    it('#3595 - Should be able to change month', fakeAsync(() => {
-        const fixture = TestBed.createComponent(IgxDatePickerTestComponent);
-        fixture.componentInstance.datePicker.value = new Date(2019, 2, 10);
-        tick(300);
-        fixture.detectChanges();
-
-        const dom = fixture.debugElement;
-        const target = dom.query(By.css('.igx-date-picker__input-date'));
-        UIInteractions.simulateClickAndSelectEvent(target);
-        tick(200);
-        fixture.detectChanges();
-
-        let month = document.getElementsByClassName('igx-calendar-picker__date')[0];
-        month.dispatchEvent(new Event('click'));
-        tick(200);
-        fixture.detectChanges();
-
-        const firstMonth = document.getElementsByClassName('igx-calendar__month')[0];
-        const expectedResult = (firstMonth as HTMLElement).innerText;
-
-        firstMonth.dispatchEvent(new Event('click'));
-        tick(200);
-        fixture.detectChanges();
-
-        month = document.getElementsByClassName('igx-calendar-picker__date')[0];
-        expect((month as HTMLElement).innerText.trim()).toBe(expectedResult.trim());
-    }));
-
-    describe('Drop-down opening', () => {
-        // configureTestSuite();
-        let fixture: ComponentFixture<IgxDatePickerOpeningComponent>;
-        let datePicker: IgxDatePickerComponent;
-
-        beforeEach(() => {
-            fixture = TestBed.createComponent(IgxDatePickerOpeningComponent);
-            datePicker = fixture.componentInstance.datePicker;
-            fixture.detectChanges();
-        });
-
-        it('Drop-down should open below the input by default if there is enough space - dropdown mode', fakeAsync(() => {
-            const dom = fixture.debugElement;
-
-            const inputGroup = document.getElementsByTagName('igx-input-group');
-            const inputGroupRect = inputGroup[0].getBoundingClientRect() as DOMRect;
-            const inputGroupTop = inputGroupRect.top;
-
-            const iconDate = dom.query(By.css('.igx-icon'));
-            UIInteractions.simulateClickAndSelectEvent(iconDate);
-            fixture.detectChanges();
-            tick();
-
-            const calendar = document.getElementsByTagName('igx-calendar-container');
-            const calendarRect = calendar[0].getBoundingClientRect() as DOMRect;
-            const calendarTop = calendarRect.top;
-
-            expect(inputGroupTop).toBeLessThan(calendarTop);
-        }));
-
-        it('Drop-down should open above the input when there is no enough space below - dropdown mode', fakeAsync(() => {
-            const dom = fixture.debugElement;
-
-            // check if drop down is opened above the input if there is no space below
-            datePicker.element.nativeElement.style = 'position: fixed; bottom: 150px';
-            fixture.detectChanges();
-            tick();
-
-            const inputGroup = document.getElementsByTagName('igx-input-group');
-            const inputGroupRect = inputGroup[0].getBoundingClientRect() as DOMRect;
-            const inputGroupTop = inputGroupRect.top;
-
-            const iconDate = dom.query(By.css('.igx-icon'));
-            UIInteractions.simulateClickAndSelectEvent(iconDate);
-            fixture.detectChanges();
-            tick();
-
-            const calendar = document.getElementsByTagName('igx-calendar-container');
-            const calendarRect = calendar[0].getBoundingClientRect() as DOMRect;
-            const calendarTop = calendarRect.top;
-
-            expect(inputGroupTop).toBeGreaterThan(calendarTop);
-        }));
-    });
 
     describe('Drop-down Retemplated Date Picker', () => {
         // configureTestSuite();
@@ -879,105 +1141,11 @@ describe('IgxDatePicker', () => {
             expect(datePicker.onClosed.emit).toHaveBeenCalledWith(datePicker);
         });
 
-        it('Handling keyboard navigation with `space`(open) and `esc`(close) buttons - dropdown mode', fakeAsync(() => {
-            const datePickerDom = fixture.debugElement.query(By.css('igx-date-picker'));
-            UIInteractions.triggerKeyDownEvtUponElem('space', datePickerDom.nativeElement, false);
-            fixture.detectChanges();
 
-            const overlayDiv = document.getElementsByClassName('igx-overlay__content')[0];
-            expect(overlayDiv).toBeDefined();
-            expect(overlayDiv.classList.contains('igx-overlay__content')).toBeTruthy();
 
-            const dropDown = document.getElementsByClassName('igx-date-picker--dropdown');
-            expect(dropDown.length).toBe(1);
-            expect(dropDown[0]).not.toBeNull();
 
-            UIInteractions.triggerKeyDownEvtUponElem('Escape', dropDown[0], false);
-            flush();
-            fixture.detectChanges();
 
-            const overlays = document.getElementsByClassName('igx-overlay__content');
-            expect(overlays.length).toEqual(0);
-        }));
-
-        it('Open/close drop-down with `alt + down`(open) and `alt + up`(close) - dropdown mode', fakeAsync(() => {
-            const input = fixture.debugElement.query(By.directive(IgxInputDirective));
-            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true }));
-            tick();
-            fixture.detectChanges();
-
-            const overlayDiv = document.getElementsByClassName('igx-overlay__content')[0];
-            expect(overlayDiv).toBeDefined();
-            expect(overlayDiv.classList.contains('igx-overlay__content')).toBeTruthy();
-
-            const dropDown = document.getElementsByClassName('igx-date-picker--dropdown');
-            expect(dropDown.length).toBe(1);
-            expect(dropDown[0]).not.toBeNull();
-
-            dropDown[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true }));
-            flush();
-            fixture.detectChanges();
-
-            const overlays = document.getElementsByClassName('igx-overlay__content');
-            expect(overlays.length).toEqual(0);
-        }));
-
-        it('Datepicker onSelection  and valueChange events and selectDate method propagation - dropdown mode', () => {
-            spyOn(datePicker.onSelection, 'emit');
-            spyOn(datePicker.valueChange, 'emit');
-            const newDate: Date = new Date(2016, 4, 6);
-            datePicker.selectDate(newDate);
-            fixture.detectChanges();
-
-            expect(datePicker.onSelection.emit).toHaveBeenCalled();
-            expect(datePicker.valueChange.emit).toHaveBeenCalled();
-            expect(datePicker.valueChange.emit).toHaveBeenCalledWith(newDate);
-            expect(datePicker.value).toBe(newDate);
-
-            const input = fixture.debugElement.query(By.directive(IgxInputDirective));
-            expect(input).toBeDefined();
-            expect(input.nativeElement.value).toBe('06.05.2016');
-        });
-
-        it('should open the dropdown when click on the date icon - dropdown mode', (() => {
-            const dom = fixture.debugElement;
-            fixture.detectChanges();
-
-            const iconDate = dom.query(By.css('.igx-icon'));
-            expect(iconDate).toBeDefined();
-
-            UIInteractions.simulateClickAndSelectEvent(iconDate);
-            fixture.detectChanges();
-
-            const dropDown = dom.query(By.css('.igx-date-picker--dropdown'));
-            expect(dropDown).toBeDefined();
-        }));
-
-        it('should have correctly selected date - dropdown mode', (() => {
-            const dom = fixture.debugElement;
-            fixture.detectChanges();
-
-            const iconDate = dom.query(By.css('.igx-icon'));
-            expect(iconDate).toBeDefined();
-
-            UIInteractions.simulateClickAndSelectEvent(iconDate);
-            fixture.detectChanges();
-
-            const dropDown = dom.query(By.css('.igx-date-picker--dropdown'));
-            expect(dropDown).toBeDefined();
-
-            const selectedSpans = document.getElementsByClassName('igx-calendar__date--selected');
-            expect(selectedSpans.length).toBe(1);
-            expect((selectedSpans[0] as HTMLElement).innerText.trim()).toBe('20');
-
-            const dateHeader = document.getElementsByClassName('igx-calendar-picker__date');
-            expect(dateHeader.length).toBe(2);
-            const month = dateHeader[0].innerHTML.trim();
-            const year = dateHeader[1].innerHTML.trim();
-            expect(month).toBe('Oct');
-            expect(year).toBe('2011');
-        }));
-
+       
         it('should be able to apply display format - dropdown mode', async () => {
             const input = fixture.debugElement.query(By.directive(IgxInputDirective));
             expect(input).toBeDefined();
@@ -1012,18 +1180,6 @@ describe('IgxDatePicker', () => {
             expect(input.nativeNode.placeholder).toBe('dd-MM-yy');
         }));
 
-        it('Should be able to deselect using the API - dropdown mode', () => {
-            const date = new Date(Date.now());
-            datePicker.selectDate(date);
-            fixture.detectChanges();
-
-            expect(datePicker.value).toBe(date);
-
-            datePicker.deselectDate();
-            fixture.detectChanges();
-
-            expect(datePicker.value).toBe(null);
-        });
 
         it('should increase date parts using arrows - dropdown mode', fakeAsync(() => {
             const input = fixture.debugElement.query(By.directive(IgxInputDirective));
@@ -1167,24 +1323,6 @@ describe('IgxDatePicker', () => {
             expect(input.nativeElement.value).toBe('21.09.2013');
         }));
 
-        it('should reset value on clear button click - dropdown mode', () => {
-            spyOn(datePicker.valueChange, 'emit');
-            const input = fixture.debugElement.query(By.directive(IgxInputDirective));
-            const dom = fixture.debugElement;
-            const clear = dom.queryAll(By.css('.igx-icon'))[1];
-            UIInteractions.simulateClickAndSelectEvent(clear);
-            fixture.detectChanges();
-
-            expect(datePicker.valueChange.emit).toHaveBeenCalled();
-            expect(datePicker.valueChange.emit).toHaveBeenCalledWith(null);
-            expect(datePicker.value).toEqual(null);
-            expect(input.nativeElement.innerText).toEqual('');
-
-            input.nativeElement.dispatchEvent(new Event('blur'));
-            fixture.detectChanges();
-
-            expect(input.nativeElement.placeholder).toBe('dd-MM-yy');
-        });
 
         it('should emit onValidationFailed event when entered invalid date - dropdown mode', () => {
             const input = fixture.debugElement.query(By.directive(IgxInputDirective));
@@ -1301,33 +1439,6 @@ describe('IgxDatePicker', () => {
             // format dd.MM.y
             expect(input.nativeElement.value).toBe('31.12.2019');
         }));
-
-        it('check disabled state - dropdown mode', () => {
-            const dom = fixture.debugElement;
-            const inputGroup = dom.query(By.css('.igx-input-group'));
-            const disabled = dom.query(By.css('.igx-input-group--disabled'));
-            expect(disabled).toBeNull();
-            expect(inputGroup.nativeElement.classList.contains('igx-input-group--disabled')).toBeFalsy();
-
-            datePicker.disabled = true;
-            fixture.detectChanges();
-
-            const disabledGroup = dom.query(By.css('.igx-input-group--disabled'));
-            expect(disabledGroup).toBeDefined();
-            expect(inputGroup.nativeElement.classList.contains('igx-input-group--disabled')).toBeTruthy();
-        });
-    });
-
-    describe('EditorProvider', () => {
-        it('Should return correct edit element', () => {
-            const fixture = TestBed.createComponent(IgxDatePickerTestComponent);
-            fixture.detectChanges();
-
-            const instance = fixture.componentInstance.datePicker;
-            const editElement = fixture.debugElement.query(By.css('.igx-date-picker__input-date')).nativeElement;
-
-            expect(instance.getEditElement()).toBe(editElement);
-        });
     });
 
     describe('Drop-down mode select all text on focus', () => {
@@ -1422,8 +1533,10 @@ describe('IgxDatePicker', () => {
             fixture.detectChanges();
             expect(inputDirective.valid).toEqual(IgxInputState.INITIAL);
 
-            datePickerOnChangeComponent.disabledDates = [{ type: DateRangeType.Before,
-                                            dateRange: [new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2)] }];
+            datePickerOnChangeComponent.disabledDates = [{
+                type: DateRangeType.Before,
+                dateRange: [new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2)]
+            }];
             fixture.detectChanges();
             expect(inputDirective.valid).toEqual(IgxInputState.INVALID);
         }));
@@ -1441,8 +1554,10 @@ describe('IgxDatePicker', () => {
             fixture.detectChanges();
             expect(inputDirective.valid).toEqual(IgxInputState.INITIAL);
 
-            datePickerTemplateIGComponent.disabledDates = [{ type: DateRangeType.Before,
-                                            dateRange: [new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2)] }];
+            datePickerTemplateIGComponent.disabledDates = [{
+                type: DateRangeType.Before,
+                dateRange: [new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2)]
+            }];
             fixture.detectChanges();
             expect(inputDirective.valid).toEqual(IgxInputState.INVALID);
         }));
@@ -1450,7 +1565,7 @@ describe('IgxDatePicker', () => {
         it('Should set date picker status to invalid on blur when pass or change a template', fakeAsync(() => {
             datePickerTemplateIGComponent.disabledDates = [{ type: DateRangeType.Before, dateRange: [new Date()] }];
             const templateInputDirective = datePickerTemplateIGComponent.inputDirective;
-            const templateInput =  templateInputDirective.nativeElement;
+            const templateInput = templateInputDirective.nativeElement;
             templateInput.dispatchEvent(new Event('blur'));
             fixture.detectChanges();
             expect(templateInputDirective.valid).toEqual(IgxInputState.INVALID);
@@ -1459,7 +1574,7 @@ describe('IgxDatePicker', () => {
             fixture.detectChanges();
             // obtain the default template input directive & input
             const inputDirective = datePickerTemplateIGComponent.inputDirective;
-            const input =  inputDirective.nativeElement;
+            const input = inputDirective.nativeElement;
             expect(inputDirective.valid).toEqual(IgxInputState.INITIAL);
 
             input.dispatchEvent(new Event('blur'));
@@ -1480,108 +1595,7 @@ describe('IgxDatePicker', () => {
             expect(inputDirective.disabled).toBeTruthy();
         });
     });
-
-    describe('Control value accessor unit tests', () => {
-        let ngModel;
-        let overlay;
-        let element;
-        let cdr;
-        let moduleRef;
-        let injector;
-        let inputGroup: IgxInputGroupComponent;
-        let renderer2: Renderer2;
-
-        beforeEach(() => {
-            ngModel = {
-                control: { touched: false, dirty: false, validator: null },
-                valid: false,
-                statusChanges: new EventEmitter(),
-            };
-            overlay = {
-                onOpening: new EventEmitter<OverlayCancelableEventArgs>(),
-                onOpened: new EventEmitter<OverlayEventArgs>(),
-                onClosed: new EventEmitter<OverlayEventArgs>(),
-                onClosing: new EventEmitter<OverlayClosingEventArgs>()
-            };
-            element = {};
-            cdr = {
-                markForCheck: () => { },
-                detectChanges: () => { },
-                detach: () => { },
-                reattach: () => { }
-            };
-            moduleRef = {};
-            injector = { get: () => ngModel };
-            inputGroup = new IgxInputGroupComponent(null, null, null, document);
-            renderer2 = jasmine.createSpyObj('Renderer2', ['setAttribute'], [{}, 'aria-labelledby', 'test-label-id-1']);
-            spyOn(renderer2, 'setAttribute').and.callFake(() => {
-            });
-        });
-
-        it('should initialize date picker with required correctly', () => {
-            const datePicker = new IgxDatePickerComponent(overlay, element, cdr, moduleRef, injector, renderer2);
-            datePicker['_inputGroup'] = inputGroup;
-            datePicker['_inputDirectiveUserTemplates'] = new QueryList();
-            spyOnProperty(datePicker, 'inputGroupElement').and.returnValue(null);
-            ngModel.control.validator = () => ({ required: true });
-            datePicker.ngOnInit();
-            datePicker.ngAfterViewInit();
-            datePicker.ngAfterViewChecked();
-
-            expect(datePicker).toBeDefined();
-            expect(inputGroup.isRequired).toBeTruthy();
-        });
-
-        it('should initialize date picker with required correctly with user template input-group', () => {
-            const datePicker = new IgxDatePickerComponent(overlay, element, cdr, moduleRef, injector, renderer2);
-            datePicker['_inputGroupUserTemplate'] = inputGroup;
-            datePicker['_inputDirectiveUserTemplates'] = new QueryList();
-            spyOnProperty(datePicker, 'inputGroupElement').and.returnValue(null);
-            ngModel.control.validator = () => ({ required: true });
-            datePicker.ngOnInit();
-            datePicker.ngAfterViewInit();
-            datePicker.ngAfterViewChecked();
-
-            expect(datePicker).toBeDefined();
-            expect(inputGroup.isRequired).toBeTruthy();
-        });
-
-        it('should update inputGroup isRequired correctly', () => {
-            const datePicker = new IgxDatePickerComponent(overlay, element, cdr, moduleRef, injector, renderer2);
-            datePicker['_inputGroup'] = inputGroup;
-            datePicker['_inputDirectiveUserTemplates'] = new QueryList();
-            spyOnProperty(datePicker, 'inputGroupElement').and.returnValue(null);
-            datePicker.ngOnInit();
-            datePicker.ngAfterViewInit();
-            datePicker.ngAfterViewChecked();
-
-            expect(datePicker).toBeDefined();
-            expect(inputGroup.isRequired).toBeFalsy();
-
-            ngModel.control.validator = () => ({ required: true });
-            ngModel.statusChanges.emit();
-            expect(inputGroup.isRequired).toBeTruthy();
-
-            ngModel.control.validator = () => ({ required: false });
-            ngModel.statusChanges.emit();
-            expect(inputGroup.isRequired).toBeFalsy();
-        });
-    });
 });
-
-@Component({
-    template: `
-        <igx-date-picker [formatter]="customFormatter" [value]=date></igx-date-picker>
-    `
-})
-export class IgxDatePickerWithCustomFormatterComponent {
-    @ViewChild(IgxDatePickerComponent, { static: true }) public datePicker: IgxDatePickerComponent;
-
-    public date = new Date(2017, 7, 7);
-    public customFormatter = (_: Date) => (
-        `${_.getFullYear()}/${_.getMonth()}/${_.getDate()}`
-    )
-}
 
 @Component({
     template: `
@@ -1600,23 +1614,12 @@ export class IgxDatePickerWithWeekStartComponent {
         </igx-date-picker>
     `
 })
-export class IgxDatePickerProjectedLabelTestComponent {
-    @ViewChild(IgxDatePickerComponent, { static: true }) public datePicker: IgxDatePickerComponent;
-
-    public customLabelVisibility = true;
-    public customLabel = 'Custom label';
-    public labelVisibility = true;
-}
-
-@Component({
-    template: `
-        <igx-date-picker [labelVisibility]="labelVisibility"></igx-date-picker>
-    `
-})
 export class IgxDatePickerTestComponent {
     @ViewChild(IgxDatePickerComponent, { static: true }) public datePicker: IgxDatePickerComponent;
 
     public labelVisibility = true;
+    public customLabel = 'Custom label';
+    public customLabelVisibility = false;
 }
 @Component({
     template: `
@@ -1668,7 +1671,7 @@ export class IgxDatePickerNgModelComponent {
 })
 export class IgxDatePickerRetemplatedComponent {
     @ViewChild(IgxDatePickerComponent, { static: true }) public datePicker: IgxDatePickerComponent;
- }
+}
 
 @Component({
     template: `
