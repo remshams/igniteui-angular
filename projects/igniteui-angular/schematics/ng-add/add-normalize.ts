@@ -1,9 +1,8 @@
 import * as path from 'path';
 
 import { Tree } from '@angular-devkit/schematics';
-import { getWorkspace, getWorkspacePath } from '@schematics/angular/utility/config';
 import { WorkspaceProject, ProjectType } from '@schematics/angular/utility/workspace-models';
-import { addPackageToPkgJson } from '../utils/dependency-handler';
+import { addPackageToPkgJson, getWorkspace, getWorkspacePath } from '../utils/dependency-handler';
 
 const resetPackage = { 'minireset.css': '~0.0.4' };
 

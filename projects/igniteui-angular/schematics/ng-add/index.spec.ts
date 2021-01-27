@@ -1,10 +1,9 @@
 import { EmptyTree } from '@angular-devkit/schematics';
 import { SchematicTestRunner, UnitTestTree } from '@angular-devkit/schematics/testing';
 import * as path from 'path';
-import { getWorkspace } from '@schematics/angular/utility/config';
 import { scssImport, cssImport } from './add-normalize';
 import { ProjectType } from '@schematics/angular/utility/workspace-models';
-import { DEPENDENCIES_MAP, PackageTarget, PackageEntry } from '../utils/dependency-handler';
+import { DEPENDENCIES_MAP, PackageTarget, PackageEntry, getWorkspace } from '../utils/dependency-handler';
 
 describe('ng-add schematics', () => {
   const collectionPath = path.join(__dirname, '../collection.json');

@@ -1,6 +1,5 @@
 import { SchematicContext, Rule, SchematicsException } from '@angular-devkit/schematics';
 import { Tree } from '@angular-devkit/schematics/src/tree/interface';
-import { getWorkspace } from '@schematics/angular/utility/config';
 import { Options } from '../interfaces/options';
 import { WorkspaceProject, ProjectType } from '@schematics/angular/utility/workspace-models';
 
@@ -41,6 +40,19 @@ export const DEPENDENCIES_MAP: PackageEntry[] = [
         // igxDevDependencies
         { name: '@igniteui/angular-schematics', target: PackageTarget.DEV }
 ];
+
+export const getWorkspacePath = (host: Tree) => {
+    const targetFiles = ['/angular.json', '/.angular.json'];
+    return targetFiles.filter(p => host.exists(p))[0];
+};
+
+export const getWorkspace = (host: Tree) => {
+    const path = getWorkspacePath(host);
+    if (path) {
+        const content = host.read(path).toString();
+        return JSON.parse(content);
+    }
+};
 
 const logIncludingDependency = (context: SchematicContext, pkg: string, version: string): void =>
     context.logger.info(`Including ${pkg} - Version: ${version}`);

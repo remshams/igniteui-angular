@@ -2,12 +2,10 @@ import { chain, Rule, SchematicContext, Tree } from '@angular-devkit/schematics'
 import { Options } from '../interfaces/options';
 import { installPackageJsonDependencies } from '../utils/package-handler';
 import { logSuccess, addDependencies, overwriteJsonFile,
-    getPropertyFromWorkspace, getConfigFile } from '../utils/dependency-handler';
+    getPropertyFromWorkspace, getConfigFile, getWorkspace } from '../utils/dependency-handler';
 
 import { addResetCss } from './add-normalize';
-import { getWorkspace } from '@schematics/angular/utility/config';
 import { WorkspaceSchema } from '@schematics/angular/utility/workspace-models';
-
 
 /**
  * Checks whether a property exists in the angular workspace.
