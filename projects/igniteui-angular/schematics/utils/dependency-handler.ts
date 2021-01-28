@@ -1,8 +1,7 @@
 import { SchematicContext, Rule, SchematicsException } from '@angular-devkit/schematics';
 import { Tree } from '@angular-devkit/schematics/src/tree/interface';
 import { Options } from '../interfaces/options';
-import { WorkspaceProject, ProjectType } from '@schematics/angular/utility/workspace-models';
-
+import { WorkspaceProject, ProjectType, WorkspaceSchema } from '@schematics/angular/utility/workspace-models';
 
 export enum PackageTarget {
     DEV = 'devDependencies',
@@ -21,32 +20,32 @@ const schematicsPackage = '@igniteui/angular-schematics';
  * unnecessary packages to the consuming project's deps
  */
 export const DEPENDENCIES_MAP: PackageEntry[] = [
-        // dependencies
-        { name: 'hammerjs', target: PackageTarget.REGULAR },
-        { name: 'jszip', target: PackageTarget.REGULAR },
-        { name: 'tslib', target: PackageTarget.NONE },
-        { name: 'resize-observer-polyfill', target: PackageTarget.REGULAR },
-        { name: '@types/hammerjs', target: PackageTarget.DEV },
-        { name: 'igniteui-trial-watermark', target: PackageTarget.NONE },
-        { name: 'lodash.mergewith', target: PackageTarget.NONE },
-        { name: 'uuid', target: PackageTarget.NONE },
-        { name: 'web-animations-js', target: PackageTarget.REGULAR },
-        { name: '@igniteui/material-icons-extended', target: PackageTarget.REGULAR },
-        // peerDependencies
-        { name: '@angular/forms', target: PackageTarget.NONE },
-        { name: '@angular/common', target: PackageTarget.NONE },
-        { name: '@angular/core', target: PackageTarget.NONE },
-        { name: '@angular/animations', target: PackageTarget.NONE },
-        // igxDevDependencies
-        { name: '@igniteui/angular-schematics', target: PackageTarget.DEV }
+    // dependencies
+    { name: 'hammerjs', target: PackageTarget.REGULAR },
+    { name: 'jszip', target: PackageTarget.REGULAR },
+    { name: 'tslib', target: PackageTarget.NONE },
+    { name: 'resize-observer-polyfill', target: PackageTarget.REGULAR },
+    { name: '@types/hammerjs', target: PackageTarget.DEV },
+    { name: 'igniteui-trial-watermark', target: PackageTarget.NONE },
+    { name: 'lodash.mergewith', target: PackageTarget.NONE },
+    { name: 'uuid', target: PackageTarget.NONE },
+    { name: 'web-animations-js', target: PackageTarget.REGULAR },
+    { name: '@igniteui/material-icons-extended', target: PackageTarget.REGULAR },
+    // peerDependencies
+    { name: '@angular/forms', target: PackageTarget.NONE },
+    { name: '@angular/common', target: PackageTarget.NONE },
+    { name: '@angular/core', target: PackageTarget.NONE },
+    { name: '@angular/animations', target: PackageTarget.NONE },
+    // igxDevDependencies
+    { name: '@igniteui/angular-schematics', target: PackageTarget.DEV }
 ];
 
-export const getWorkspacePath = (host: Tree) => {
+export const getWorkspacePath = (host: Tree): string => {
     const targetFiles = ['/angular.json', '/.angular.json'];
     return targetFiles.filter(p => host.exists(p))[0];
 };
 
-export const getWorkspace = (host: Tree) => {
+export const getWorkspace = (host: Tree): WorkspaceSchema => {
     const path = getWorkspacePath(host);
     if (path) {
         const content = host.read(path).toString();
@@ -87,18 +86,20 @@ export const getConfigFile = (project: WorkspaceProject<ProjectType>, option: st
 
 };
 
-export const overwriteJsonFile = (tree: Tree, targetFile: string, data: any) =>
+export const overwriteJsonFile = (tree: Tree, targetFile: string, data: any): void =>
     tree.overwrite(targetFile, JSON.stringify(data, null, 2) + '\n');
 
 
-export const logSuccess = (options: Options): Rule => (tree: Tree, context: SchematicContext) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const logSuccess = (options: Options): Rule => (tree: Tree, context: SchematicContext): void => {
     context.logger.info('');
     context.logger.warn('Ignite UI for Angular installed');
     context.logger.info('Learn more: https://www.infragistics.com/products/ignite-ui-angular');
     context.logger.info('');
 };
 
-export const addDependencies = (options: Options): Rule => (tree: Tree, context: SchematicContext) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const addDependencies = (options: Options): Rule => (tree: Tree, context: SchematicContext): Tree => {
     const pkgJson = require('../../package.json');
 
     includeDependencies(pkgJson, context, tree);
@@ -147,7 +148,7 @@ export const getPropertyFromWorkspace = (targetProp: string, workspace: any, cur
     return null;
 };
 
-const addHammerToConfig = (project: WorkspaceProject<ProjectType>, tree: Tree, config: string) => {
+const addHammerToConfig = (project: WorkspaceProject<ProjectType>, tree: Tree, config: string): void => {
     const projectOptions = getTargetedProjectOptions(project, config);
     const tsPath = getConfigFile(project, 'main', config);
     const hammerImport = 'import \'hammerjs\';\n';
@@ -161,7 +162,7 @@ const addHammerToConfig = (project: WorkspaceProject<ProjectType>, tree: Tree, c
     }
 };
 
-const includeDependencies = (pkgJson: any, context: SchematicContext, tree: Tree) => {
+const includeDependencies = (pkgJson: any, context: SchematicContext, tree: Tree): void => {
     Object.keys(pkgJson.dependencies).forEach(pkg => {
         const version = pkgJson.dependencies[pkg];
         const entry = DEPENDENCIES_MAP.find(e => e.name === pkg);
