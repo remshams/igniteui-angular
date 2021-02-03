@@ -61,6 +61,27 @@
             "definedIn": [
                 "IExpansionPanelEventArgs"
             ]
+        },
+        {
+            "member": "label",
+            "replaceWith": "text",
+            "definedIn": [
+                "IgxSummaryResult"
+            ]
+        },
+        {
+            "member": "operate",
+            "replaceWith": "perform",
+            "definedIn": [
+                "IgxNumberSummaryOperand"
+            ]
+        },
+        {
+            "member": "newSelection",
+            "replaceWith": "newRows",
+            "definedIn": [
+                "IRowSelectionEventArgs"
+            ]
         }
     ]
 }
