@@ -1,11 +1,10 @@
 import {
     Component, OnInit,
-    OnDestroy, ChangeDetectionStrategy, Input, Inject, ViewChild, TemplateRef, AfterViewInit, forwardRef, HostListener, ViewChildren, Optional, QueryList, ContentChildren
+    OnDestroy, Input, Inject, ViewChild, TemplateRef, AfterViewInit, QueryList, ContentChildren
 } from '@angular/core';
 import { IgxSelectionAPIService } from '../../core/selection';
 import { IgxExpansionPanelComponent } from '../../expansion-panel/public_api';
 import { IGX_TREE_COMPONENT, IgxTree, IgxTreeNode, IGX_TREE_NODE_COMPONENT } from '../common';
-import { IgxTreeComponent } from '../tree.component';
 import { IgxTreeService } from '../tree.service';
 
 
@@ -36,9 +35,6 @@ export class IgxTreeNodeComponent implements IgxTreeNode, OnInit, AfterViewInit,
         protected selectionService: IgxSelectionAPIService,
         protected treeService: IgxTreeService
     ) { }
-
-    @Input()
-    public parentId: string | null;
 
     @Input()
     public parentPath: string;
