@@ -1,28 +1,23 @@
-<igx-expansion-panel>
-    <igx-expansion-panel-header class="igx-node__header" [iconPosition]="'left'">
-        <igx-expansion-panel-icon>
-            <div class="igx-node__expansion-indicator" (click)="toggle($event)">
-                <ng-container *ngTemplateOutlet="expandIndicatorTemplate, context: templateContext">
-                </ng-container>
-            </div>
-            <div class="igx-node__select-indicator" (click)="select($event)">
-                <ng-container *ngTemplateOutlet="selectMarkerTemplate, context: templateContext">
-                </ng-container>
-            </div>
-        </igx-expansion-panel-icon>
-        <igx-expansion-panel-title>
-            <ng-content></ng-content>
-        </igx-expansion-panel-title>
-    </igx-expansion-panel-header>
-    <igx-expansion-panel-body>
-        <ng-content select="igx-tree-node"></ng-content>
-    </igx-expansion-panel-body>
-</igx-expansion-panel>
-
+<div class="igx-tree-node__header">
+    <div class="igx-tree-node__indicators">
+        <div class="igx-tree-node__expand-indicator" [ngClass]="{ hidden: !children?.length }" (click)="expanded = !expanded">
+            <ng-container *ngTemplateOutlet="expandIndicatorTemplate, context: templateContext">
+            </ng-container>
+        </div>
+        <div class="igx-tree-node__select-marker" (click)="selected = !selected">
+            <ng-container *ngTemplateOutlet="selectMarkerTemplate, context: templateContext">
+            </ng-container>
+        </div>
+    </div>
+    <ng-content></ng-content>
+</div>
+<div *ngIf="expanded" class="igx-tree-node__group" role="group">
+    <ng-content select="igx-tree-node"></ng-content>
+</div>
 
 <ng-template #defaultIndicator let-item>
     <igx-icon [ngClass]="{ hidden: this.children?.length == 0 }">
-        {{ expanded ? "expand_less" : "expand_more" }}
+        {{ expanded ? "arrow_drop_down" : "arrow_right" }}
     </igx-icon>
 </ng-template>
 
