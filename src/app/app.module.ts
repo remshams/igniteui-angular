@@ -141,6 +141,8 @@ import { GridFinJSComponent } from './grid-finjs/grid-finjs.component';
 import { MainComponent } from './grid-finjs/main.component';
 import { ControllerComponent } from './grid-finjs/controllers.component';
 import { CommonModule } from '@angular/common';
+
+import { GridEventsComponent } from './grid-events/grid-events.component';
 import { TreeSampleComponent } from './tree/tree.sample';
 
 const components = [
@@ -256,6 +258,7 @@ const components = [
     GridFlexSampleComponent,
     GridEsfLoadOnDemandComponent,
     GridFormattingComponent,
+    GridEventsComponent,
     GridFilteringComponent,
     GridFinJSComponent,
     MainComponent,
