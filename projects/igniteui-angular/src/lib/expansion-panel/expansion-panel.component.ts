@@ -8,24 +8,21 @@ import {
     ContentChild,
     AfterContentInit
 } from '@angular/core';
-import { AnimationBuilder, AnimationReferenceMetadata, useAnimation } from '@angular/animations';
+import { AnimationBuilder } from '@angular/animations';
 import { growVerOut, growVerIn } from '../animations/main';
 import { IgxExpansionPanelBodyComponent } from './expansion-panel-body.component';
 import { IgxExpansionPanelHeaderComponent } from './expansion-panel-header.component';
 import { IGX_EXPANSION_PANEL_COMPONENT, IgxExpansionPanelBase, IExpansionPanelEventArgs } from './expansion-panel.common';
+import { ToggleAnimationComponent, ToggleAnimationSettings } from './toggle-animation-component';
 
 let NEXT_ID = 0;
 
-export interface AnimationSettings {
-    openAnimation: AnimationReferenceMetadata;
-    closeAnimation: AnimationReferenceMetadata;
-}
 @Component({
     selector: 'igx-expansion-panel',
     templateUrl: 'expansion-panel.component.html',
     providers: [{ provide: IGX_EXPANSION_PANEL_COMPONENT, useExisting: IgxExpansionPanelComponent }]
 })
-export class IgxExpansionPanelComponent implements IgxExpansionPanelBase, AfterContentInit {
+export class IgxExpansionPanelComponent extends ToggleAnimationComponent implements IgxExpansionPanelBase, AfterContentInit {
     /**
      * Sets/gets the animation settings of the expansion panel component
      * Open and Close animation should be passed
@@ -58,7 +55,7 @@ export class IgxExpansionPanelComponent implements IgxExpansionPanelBase, AfterC
      * ```
      */
     @Input()
-    public animationSettings: AnimationSettings = {
+    public animationSettings: ToggleAnimationSettings = {
         openAnimation: growVerIn,
         closeAnimation: growVerOut
     };
@@ -165,10 +162,12 @@ export class IgxExpansionPanelComponent implements IgxExpansionPanelBase, AfterC
 
     private _collapsed = true;
 
-    constructor(private cdr: ChangeDetectorRef, private builder: AnimationBuilder) { }
+    constructor(private cdr: ChangeDetectorRef, protected builder: AnimationBuilder) {
+        super(builder);
+    }
 
     /** @hidden */
-    ngAfterContentInit(): void {
+    public ngAfterContentInit(): void {
         if (this.body && this.header) {
             // schedule at end of turn:
             Promise.resolve().then(() => {
@@ -188,11 +187,12 @@ export class IgxExpansionPanelComponent implements IgxExpansionPanelBase, AfterC
      *  <button (click)="myPanel.collapse($event)">Collpase Panel</button>
      * ```
      */
-    collapse(evt?: Event) {
+    public collapse(evt?: Event) {
         if (this.collapsed) { // If expansion panel is already collapsed, do nothing
             return;
         }
         this.playCloseAnimation(
+            this.body?.element,
             () => {
                 this.onCollapsed.emit({ event: evt, panel: this, owner: this });
                 this.collapsed = true;
@@ -211,13 +211,14 @@ export class IgxExpansionPanelComponent implements IgxExpansionPanelBase, AfterC
      *  <button (click)="myPanel.expand($event)">Expand Panel</button>
      * ```
      */
-    expand(evt?: Event) {
+    public expand(evt?: Event) {
         if (!this.collapsed) { // If the panel is already opened, do nothing
             return;
         }
         this.collapsed = false;
         this.cdr.detectChanges();
         this.playOpenAnimation(
+            this.body?.element,
             () => {
                 this.onExpanded.emit({ event: evt, panel: this, owner: this });
             }
@@ -234,7 +235,7 @@ export class IgxExpansionPanelComponent implements IgxExpansionPanelBase, AfterC
      *  <button (click)="myPanel.toggle($event)">Expand Panel</button>
      * ```
      */
-    toggle(evt?: Event) {
+    public toggle(evt?: Event) {
         if (this.collapsed) {
             this.open(evt);
         } else {
@@ -242,41 +243,11 @@ export class IgxExpansionPanelComponent implements IgxExpansionPanelBase, AfterC
         }
     }
 
-    open(evt?: Event) {
+    public open(evt?: Event) {
         this.expand(evt);
     }
-    close(evt?: Event) {
+
+    public close(evt?: Event) {
         this.collapse(evt);
-    }
-
-    private playOpenAnimation(cb: () => void) {
-        if (!this.body) { // if not body element is passed, there is nothing to animate
-            return;
-        }
-        const animation = useAnimation(this.animationSettings.openAnimation);
-        const animationBuilder = this.builder.build(animation);
-        const openAnimationPlayer = animationBuilder.create(this.body.element.nativeElement);
-
-        openAnimationPlayer.onDone(() => {
-            cb();
-            openAnimationPlayer.reset();
-        });
-
-        openAnimationPlayer.play();
-    }
-
-    private playCloseAnimation(cb: () => void) {
-        if (!this.body) { // if not body element is passed, there is nothing to animate
-            return;
-        }
-        const animation = useAnimation(this.animationSettings.closeAnimation);
-        const animationBuilder = this.builder.build(animation);
-        const closeAnimationPlayer = animationBuilder.create(this.body.element.nativeElement);
-        closeAnimationPlayer.onDone(() => {
-            cb();
-            closeAnimationPlayer.reset();
-        });
-
-        closeAnimationPlayer.play();
     }
 }

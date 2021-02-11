@@ -1,6 +1,7 @@
 <div class="igx-tree-node__header">
     <div class="igx-tree-node__indicators">
-        <div class="igx-tree-node__expand-indicator" [ngClass]="{ hidden: !children?.length }" (click)="expanded = !expanded">
+        <div class="igx-tree-node__expand-indicator" [ngClass]="{ hidden: !children?.length }"
+            (click)="expanded = !expanded">
             <ng-container *ngTemplateOutlet="expandIndicatorTemplate, context: templateContext">
             </ng-container>
         </div>
@@ -11,7 +12,8 @@
     </div>
     <ng-content></ng-content>
 </div>
-<div *ngIf="expanded" class="igx-tree-node__group" role="group">
+<div #childrenContainer *ngIf="expanded"
+    class="igx-tree-node__group" role="group">
     <ng-content select="igx-tree-node"></ng-content>
 </div>
 

@@ -1,10 +1,14 @@
+import { AnimationBuilder } from '@angular/animations';
 import {
     Component, OnInit,
     OnDestroy, Input, Inject, ViewChild, TemplateRef, AfterViewInit, QueryList, ContentChildren, Optional, SkipSelf,
-    HostBinding
+    HostBinding,
+    ElementRef,
+    ChangeDetectorRef
 } from '@angular/core';
 import { IgxSelectionAPIService } from '../../core/selection';
-import { IGX_TREE_COMPONENT, IgxTree, IgxTreeNode, IGX_TREE_NODE_COMPONENT } from '../common';
+import { ToggleAnimationComponent } from '../../expansion-panel/toggle-animation-component';
+import { IGX_TREE_COMPONENT, IgxTree, IgxTreeNode, IGX_TREE_NODE_COMPONENT, ITreeNodeTogglingEventArgs } from '../common';
 import { IgxTreeService } from '../tree.service';
 
 
@@ -33,9 +37,9 @@ let nodeId = 0;
         { provide: IGX_TREE_NODE_COMPONENT, useExisting: IgxTreeNodeComponent }
     ]
 })
-export class IgxTreeNodeComponent implements IgxTreeNode, OnInit, AfterViewInit, OnDestroy {
+export class IgxTreeNodeComponent<T> extends ToggleAnimationComponent implements IgxTreeNode, OnInit, AfterViewInit, OnDestroy {
     @Input()
-    public data: any;
+    public data: T;
 
     @Input()
     public selectMarker: TemplateRef<any>;
@@ -44,7 +48,7 @@ export class IgxTreeNodeComponent implements IgxTreeNode, OnInit, AfterViewInit,
     public expandIndicator: TemplateRef<any>;
 
     @HostBinding('class.igx-tree-node')
-    public cssClass='igx-tree-node';
+    public cssClass = 'igx-tree-node';
 
     @ContentChildren(IGX_TREE_NODE_COMPONENT, { read: IGX_TREE_NODE_COMPONENT })
     public children: QueryList<IgxTreeNode>;
@@ -55,6 +59,9 @@ export class IgxTreeNodeComponent implements IgxTreeNode, OnInit, AfterViewInit,
     @ViewChild('defaultIndicator', { read: TemplateRef, static: true })
     private _defaultExpandIndicatorTemplate: TemplateRef<any>;
 
+    @ViewChild('childrenContainer', { read: ElementRef })
+    private childrenContainer: ElementRef;
+
     public inEdit = false;
 
     public id = `igxTreeNode_${nodeId++}`;
@@ -63,8 +70,12 @@ export class IgxTreeNodeComponent implements IgxTreeNode, OnInit, AfterViewInit,
         @Inject(IGX_TREE_COMPONENT) public tree: IgxTree,
         protected selectionService: IgxSelectionAPIService,
         protected treeService: IgxTreeService,
+        protected cdr: ChangeDetectorRef,
+        protected builder: AnimationBuilder,
         @Optional() @SkipSelf() @Inject(IGX_TREE_NODE_COMPONENT) public parentNode: IgxTreeNode
-    ) { }
+    ) {
+        super(builder);
+    }
 
     public get level(): number {
         return this.parentNode ? this.parentNode.level + 1 : 0;
@@ -90,9 +101,9 @@ export class IgxTreeNodeComponent implements IgxTreeNode, OnInit, AfterViewInit,
 
     public set expanded(val: boolean) {
         if (val) {
-            this.tree.expand(this);
+            this.expand();
         } else {
-            this.tree.collapse(this);
+            this.collapse();
         }
     }
 
@@ -110,11 +121,6 @@ export class IgxTreeNodeComponent implements IgxTreeNode, OnInit, AfterViewInit,
         };
     }
 
-    /** @hidden @internal */
-    public cancelInteraction(event: any) {
-        event.cancel = true;
-    }
-
     public ngOnInit() {
     }
 
@@ -122,6 +128,56 @@ export class IgxTreeNodeComponent implements IgxTreeNode, OnInit, AfterViewInit,
     }
 
     public ngOnDestroy() {
+    }
 
+    private expand() {
+        if (this.treeService.isExpanded(this.id)) {
+            return;
+        }
+        const args: ITreeNodeTogglingEventArgs = {
+            owner: this.tree,
+            node: this,
+            cancel: false
+
+        };
+        this.tree.nodeExpanding.emit(args);
+        if (!args.cancel) {
+            this.treeService.expand(this.id);
+            this.cdr.detectChanges();
+            this.playOpenAnimation(
+                this.childrenContainer,
+                () => {
+                    this.tree.nodeExpanded.emit({ owner: this.tree, node: this });
+                }
+            );
+        }
+
+    }
+
+    private collapse() {
+        if (!this.treeService.isExpanded(this.id)) {
+            return;
+        }
+        const args: ITreeNodeTogglingEventArgs = {
+            owner: this.tree,
+            node: this,
+            cancel: false
+
+        };
+        this.tree.nodeCollapsing.emit(args);
+        if (!args.cancel) {
+            this.playCloseAnimation(
+                this.childrenContainer,
+                () => {
+                    this.tree.nodeCollapsed.emit({ owner: this.tree, node: this });
+                    this.treeService.collapse(this.id);
+                    this.cdr.markForCheck();
+                }
+            );
+            this.tree.nodeCollapsed.emit({
+                owner: this.tree,
+                node: this
+            });
+        }
     }
 }
