@@ -41,7 +41,14 @@ export abstract class ToggleAnimationComponent {
             animationOwner.openAnimationPlayer = animationBuilder.create(targetElement.nativeElement);
             animationOwner.openAnimationPlayer.onDone(() => {
                 callback();
-                animationOwner.openAnimationPlayer.reset();
+                if (animationOwner.openAnimationPlayer) {
+                    animationOwner.openAnimationPlayer.reset();
+                    animationOwner.openAnimationPlayer = null;
+                }
+
+                if (animationOwner.closeAnimationPlayer && animationOwner.closeAnimationPlayer.hasStarted()) {
+                    animationOwner.closeAnimationPlayer.reset();
+                }
             });
         }
 
@@ -80,7 +87,14 @@ export abstract class ToggleAnimationComponent {
             animationOwner.closeAnimationPlayer = animationBuilder.create(targetElement.nativeElement);
             animationOwner.closeAnimationPlayer.onDone(() => {
                 callback();
-                animationOwner.closeAnimationPlayer.reset();
+                if (animationOwner.closeAnimationPlayer) {
+                    animationOwner.closeAnimationPlayer.reset();
+                    animationOwner.closeAnimationPlayer = null;
+                }
+
+                if (animationOwner.openAnimationPlayer && animationOwner.openAnimationPlayer.hasStarted()) {
+                    animationOwner.openAnimationPlayer.reset();
+                }
             });
         }
 
