@@ -10,7 +10,7 @@ import { ToggleAnimationSettings } from '../expansion-panel/toggle-animation-com
 import { IgxIconModule } from '../icon/public_api';
 import { IgxInputGroupModule } from '../input-group/public_api';
 import { IGX_TREE_COMPONENT, IGX_TREE_SELECTION_TYPE, IgxTree, ITreeNodeToggledEventArgs,
-    ITreeNodeTogglingEventArgs, ITreeNodeSelectionEvent, IgxTreeNode } from './common';
+    ITreeNodeTogglingEventArgs, ITreeNodeSelectionEvent, IgxTreeNode, IgxTreeSearchResolver } from './common';
 import { IgxTreeNodeComponent } from './tree-node/tree-node.component';
 import { IgxTreeService } from './tree.service';
 
@@ -68,65 +68,25 @@ export class IgxTreeComponent implements IgxTree, OnInit, AfterViewInit, OnDestr
     @ContentChild(IgxTreeExpandIndicatorDirective, { read: TemplateRef })
     public expandIndicator: TemplateRef<any>;
 
-    @ContentChildren(IgxTreeNodeComponent)
+    @ContentChildren(IgxTreeNodeComponent, { descendants: true })
     private nodes: QueryList<IgxTreeNodeComponent<any>>;
 
     public id = `tree-${init_id++}`;
 
     constructor(private selectionService: IgxSelectionAPIService, private treeService: IgxTreeService) {}
 
-    public select(node: IgxTreeNodeComponent<any>): void {
-        this.selectionService.select_item(this.id, node.id);
-    }
-
-    public deselect(node: IgxTreeNodeComponent<any>): void {
-        this.selectionService.deselect_item(this.id, node.id);
-    }
+    public expandAll(nodes: IgxTreeNode<any>[]) {}
+    public collapseAll(nodes: IgxTreeNode<any>[]) {}
+    public selectAll(nodes: IgxTreeNode<any>[]) {}
 
     public isNodeSelected(node: IgxTreeNodeComponent<any>): boolean {
         return this.selectionService.get(this.id).has(node.id);
     }
 
-    public expand(node: IgxTreeNodeComponent<any>): void {
-        const nodeId = node.id;
-        if (this.treeService.isExpanded(nodeId)) {
-            return;
-        }
-        const args: ITreeNodeTogglingEventArgs = {
-            owner: this,
-            node,
-            cancel: false
 
-        };
-        this.nodeExpanding.emit(args);
-        if (!args.cancel) {
-            this.treeService.expand(nodeId);
-            this.nodeExpanded.emit({
-                owner: this,
-                node
-            });
-        }
-    }
-
-    public collapse(node: IgxTreeNodeComponent<any>): void {
-        node.expanded = false;
-    }
-
-
-
-    public toggle(node: IgxTreeNodeComponent<any>): void {
-        const nodeId = node.id;
-        if (this.treeService.isExpanded(nodeId)) {
-            this.collapse(node);
-        } else {
-            this.expand(node);
-        }
-    }
-
-
-    public findNode(data: any, comparer?: <T>(node: IgxTreeNodeComponent<T>, data: T) => boolean): IgxTreeNode {
-        const compareFunc = comparer || this.comparer;
-        return this.nodes.find(e => compareFunc(e, data));
+    public findNodes<T>(searchTerm: T, comparer?: IgxTreeSearchResolver): IgxTreeNode<T>[] | null {
+        const compareFunc = comparer || this._comparer;
+        return this.nodes.filter(e => compareFunc(searchTerm, e));
     }
 
     public ngOnInit() {
@@ -140,7 +100,7 @@ export class IgxTreeComponent implements IgxTree, OnInit, AfterViewInit, OnDestr
         this.selectionService.clear(this.id);
     }
 
-    private comparer = <T>(node: IgxTreeNodeComponent<T>, data: T) => node.data === data;
+    private _comparer = <T>(data: T, node: IgxTreeNodeComponent<T>, ) => node.data === data;
 }
 
 /**

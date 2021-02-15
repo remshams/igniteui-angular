@@ -4,6 +4,7 @@ import { ToggleAnimationSettings } from '../expansion-panel/toggle-animation-com
 
 // Component interfaces
 
+export type IgxTreeSearchResolver = (data: any, node: IgxTreeNode<any>) => boolean;
 export interface IgxTree {
     id: string;
     selection: IGX_TREE_SELECTION_TYPE;
@@ -14,44 +15,43 @@ export interface IgxTree {
     nodeExpanded: EventEmitter<ITreeNodeToggledEventArgs>;
     nodeCollapsing: EventEmitter<ITreeNodeTogglingEventArgs>;
     nodeCollapsed: EventEmitter<ITreeNodeToggledEventArgs>;
-    expand(node: IgxTreeNode): void;
-    collapse(node: IgxTreeNode): void;
-    toggle(node: IgxTreeNode): void;
-    select(node: IgxTreeNode): void;
-    deselect(node: IgxTreeNode): void;
+    expandAll(nodes: IgxTreeNode<any>[]): void;
+    collapseAll(nodes: IgxTreeNode<any>[]): void;
+    selectAll(node: IgxTreeNode<any>[]): void;
+    findNodes(searchTerm: any, comparer?: IgxTreeSearchResolver): IgxTreeNode<any>[] | null;
 }
 
 // Item interfaces
-export interface IgxTreeNode {
-    parentNode?: IgxTreeNode | null;
+export interface IgxTreeNode<T> {
+    parentNode?: IgxTreeNode<any> | null;
     expanded: boolean | null;
     selected: boolean | null;
     level: number;
-    data: any;
-    children: QueryList<IgxTreeNode> | null;
+    data: T;
+    children: QueryList<IgxTreeNode<any>> | null;
 }
 
 // Events
 export interface ITreeNodeSelectionEvent extends IBaseCancelableBrowserEventArgs {
-    node: IgxTreeNode;
+    node: IgxTreeNode<any>;
 }
 
 export interface ITreeNodeEditingEvent extends IBaseCancelableBrowserEventArgs {
-    node: IgxTreeNode;
+    node: IgxTreeNode<any>;
     value: string;
 }
 
 export interface ITreeNodeEditedEvent extends IBaseEventArgs {
-    node: IgxTreeNode;
+    node: IgxTreeNode<any>;
     value: any;
 }
 
 export interface ITreeNodeTogglingEventArgs extends IBaseEventArgs, IBaseCancelableBrowserEventArgs {
-    node: IgxTreeNode;
+    node: IgxTreeNode<any>;
 }
 
 export interface ITreeNodeToggledEventArgs extends IBaseEventArgs {
-    node: IgxTreeNode;
+    node: IgxTreeNode<any>;
 }
 
 // Enums
@@ -64,4 +64,4 @@ export type IGX_TREE_SELECTION_TYPE = (typeof IGX_TREE_SELECTION_TYPE)[keyof typ
 
 // Token
 export const IGX_TREE_COMPONENT = new InjectionToken<IgxTree>('IgxTreeToken');
-export const IGX_TREE_NODE_COMPONENT = new InjectionToken<IgxTreeNode>('IgxTreeNodeToken');
+export const IGX_TREE_NODE_COMPONENT = new InjectionToken<IgxTreeNode<any>>('IgxTreeNodeToken');

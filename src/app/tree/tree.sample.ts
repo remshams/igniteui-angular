@@ -1,6 +1,6 @@
 import { useAnimation } from '@angular/animations';
 import { Component, ViewChild } from '@angular/core';
-import { growVerIn, growVerOut, IgxTreeComponent } from 'igniteui-angular';
+import { growVerIn, growVerOut, IgxTreeComponent, IgxTreeNodeComponent, IgxTreeSearchResolver } from 'igniteui-angular';
 import { HIERARCHICAL_SAMPLE_DATA } from '../shared/sample-data';
 
 @Component({
@@ -30,4 +30,12 @@ export class TreeSampleComponent {
             })
         };
     }
+
+    public customSearch(term: string) {
+        const searchResult = this.tree.findNodes(term, this.containsComparer);
+        console.log(searchResult);
+    }
+
+    private containsComparer: IgxTreeSearchResolver =
+    (term: any, node: IgxTreeNodeComponent<any>) => node.data.ID.ToLowerCase().indexOf(term.ToLowerCase()) > -1;
 }

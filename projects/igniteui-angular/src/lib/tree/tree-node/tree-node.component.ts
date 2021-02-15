@@ -38,7 +38,7 @@ let nodeId = 0;
         { provide: IGX_TREE_NODE_COMPONENT, useExisting: IgxTreeNodeComponent }
     ]
 })
-export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements IgxTreeNode, OnInit, AfterViewInit, OnDestroy {
+export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements IgxTreeNode<T>, OnInit, AfterViewInit, OnDestroy {
     @Input()
     public data: T;
 
@@ -58,7 +58,7 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements Ig
     public cssClass = 'igx-tree-node';
 
     @ContentChildren(IGX_TREE_NODE_COMPONENT, { read: IGX_TREE_NODE_COMPONENT })
-    public children: QueryList<IgxTreeNode>;
+    public children: QueryList<IgxTreeNode<any>>;
 
     @ViewChild('defaultSelect', { read: TemplateRef, static: true })
     private _defaultSelectMarker: TemplateRef<any>;
@@ -79,7 +79,7 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements Ig
         protected treeService: IgxTreeService,
         protected cdr: ChangeDetectorRef,
         protected builder: AnimationBuilder,
-        @Optional() @SkipSelf() @Inject(IGX_TREE_NODE_COMPONENT) public parentNode: IgxTreeNode
+        @Optional() @SkipSelf() @Inject(IGX_TREE_NODE_COMPONENT) public parentNode: IgxTreeNode<any>
     ) {
         super(builder);
     }
@@ -95,9 +95,9 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements Ig
 
     public set selected(val: boolean) {
         if (val) {
-            this.tree.select(this);
+            this.treeService.select(this);
         } else {
-            this.tree.deselect(this);
+            this.treeService.deselect(this);
         }
     }
 
