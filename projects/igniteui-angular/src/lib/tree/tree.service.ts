@@ -1,12 +1,19 @@
 import { Injectable } from '@angular/core';
-import { IgxTreeNode } from './common';
+import { IgxTree, IgxTreeNode } from './common';
 
+/** @hidden @internal */
 @Injectable()
 export class IgxTreeService {
     public expandedNodes: Set<string> = new Set<string>();
+    private tree: IgxTree;
 
-    public expand(id: string): void {
-        this.expandedNodes.add(id);
+    public expand(node: IgxTreeNode<any>): void {
+        this.expandedNodes.add(node.id);
+        if (this.tree.singleBranchExpand) {
+            this.tree.findNodes(node, this.siblingComparer)?.forEach(e => {
+                e.expanded = false;
+            });
+        }
     }
 
     public collapse(id: string): void {
@@ -22,4 +29,12 @@ export class IgxTreeService {
 
     public deselect(node: IgxTreeNode<any>): void {
     }
+
+    public register(tree: IgxTree) {
+        this.tree = tree;
+    }
+
+    private siblingComparer:
+    (data: IgxTreeNode<any>, node: IgxTreeNode<any>) => boolean =
+    (data: IgxTreeNode<any>, node: IgxTreeNode<any>) => node !== data && node.level === data.level;
 }

@@ -5,15 +5,17 @@
 
 <div class="row">
     <igx-input-group type="search">
-        <label igxLabel for="time">Search By Key</label>
-        <input #searchCriteria igxInput name="time" type="text">
+        <label igxLabel for="search">Search By Key</label>
+        <input #searchCriteria igxInput name="search" type="text">
     </igx-input-group>
     <button igxButton (click)="customSearch(searchCriteria.value)">Log node</button>
 </div>
 
+<label for="branchExpand"></label>
+<igx-switch name="branchExpand" [(ngModel)]="singleBranchExpand">Single Branch Expand</igx-switch>
 
 <p>IgxTree</p>
-<igx-tree class="my-tree" [animationSettings]="animationSettings">
+<igx-tree class="my-tree" [singleBranchExpand]="singleBranchExpand" [animationSettings]="animationSettings">
     <igx-tree-node *ngFor="let node of data" [selected]="node.ID === 'ALFKI'" [data]="node">
         {{ node.CompanyName }}
         <igx-tree-node *ngFor="let child of node.ChildCompanies" [data]="child">

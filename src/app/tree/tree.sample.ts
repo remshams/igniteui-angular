@@ -16,6 +16,8 @@ export class TreeSampleComponent {
 
     public data = HIERARCHICAL_SAMPLE_DATA;
 
+    public singleBranchExpand = false;
+
     public get animationSettings() {
         return  {
             openAnimation: useAnimation(growVerIn, {

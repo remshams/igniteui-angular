@@ -160,7 +160,7 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements Ig
         };
         this.tree.nodeExpanding.emit(args);
         if (!args.cancel) {
-            this.treeService.expand(this.id);
+            this.treeService.expand(this);
             this.cdr.detectChanges();
             this.playOpenAnimation(
                 this.childrenContainer

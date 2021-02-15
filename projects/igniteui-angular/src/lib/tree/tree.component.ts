@@ -38,8 +38,13 @@ export class IgxTreeExpandIndicatorDirective {
     ]
 })
 export class IgxTreeComponent implements IgxTree, OnInit, AfterViewInit, OnDestroy {
+
+
     @Input()
     public selection: IGX_TREE_SELECTION_TYPE = IGX_TREE_SELECTION_TYPE.BiState;
+
+    @Input()
+    public singleBranchExpand = false;
 
     @Input()
     public animationSettings: ToggleAnimationSettings = {
@@ -73,7 +78,9 @@ export class IgxTreeComponent implements IgxTree, OnInit, AfterViewInit, OnDestr
 
     public id = `tree-${init_id++}`;
 
-    constructor(private selectionService: IgxSelectionAPIService, private treeService: IgxTreeService) {}
+    constructor(private selectionService: IgxSelectionAPIService, private treeService: IgxTreeService) {
+        this.treeService.register(this);
+    }
 
     public expandAll(nodes: IgxTreeNode<any>[]) {}
     public collapseAll(nodes: IgxTreeNode<any>[]) {}

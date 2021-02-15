@@ -7,6 +7,7 @@ import { ToggleAnimationSettings } from '../expansion-panel/toggle-animation-com
 export type IgxTreeSearchResolver = (data: any, node: IgxTreeNode<any>) => boolean;
 export interface IgxTree {
     id: string;
+    singleBranchExpand: boolean;
     selection: IGX_TREE_SELECTION_TYPE;
     selectMarker: TemplateRef<any>;
     expandIndicator: TemplateRef<any>;
@@ -23,6 +24,7 @@ export interface IgxTree {
 
 // Item interfaces
 export interface IgxTreeNode<T> {
+    id: any;
     parentNode?: IgxTreeNode<any> | null;
     expanded: boolean | null;
     selected: boolean | null;
