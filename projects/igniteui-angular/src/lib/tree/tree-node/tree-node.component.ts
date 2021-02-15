@@ -6,8 +6,9 @@ import {
     ElementRef,
     ChangeDetectorRef
 } from '@angular/core';
+import { takeUntil } from 'rxjs/operators';
 import { IgxSelectionAPIService } from '../../core/selection';
-import { ToggleAnimationComponent } from '../../expansion-panel/toggle-animation-component';
+import { ToggleAnimationPlayer, ToggleAnimationSettings } from '../../expansion-panel/toggle-animation-component';
 import { IGX_TREE_COMPONENT, IgxTree, IgxTreeNode, IGX_TREE_NODE_COMPONENT, ITreeNodeTogglingEventArgs } from '../common';
 import { IgxTreeService } from '../tree.service';
 
@@ -37,9 +38,15 @@ let nodeId = 0;
         { provide: IGX_TREE_NODE_COMPONENT, useExisting: IgxTreeNodeComponent }
     ]
 })
-export class IgxTreeNodeComponent<T> extends ToggleAnimationComponent implements IgxTreeNode, OnInit, AfterViewInit, OnDestroy {
+export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements IgxTreeNode, OnInit, AfterViewInit, OnDestroy {
     @Input()
     public data: T;
+
+    public set animationSettings(val: ToggleAnimationSettings) {}
+
+    public get animationSettings(): ToggleAnimationSettings {
+        return this.tree.animationSettings;
+    }
 
     @Input()
     public selectMarker: TemplateRef<any>;
@@ -122,12 +129,23 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationComponent implements
     }
 
     public ngOnInit() {
+        this.openAnimationDone.pipe(takeUntil(this.destroy$)).subscribe(
+            () => {
+                this.tree.nodeExpanded.emit({ owner: this.tree, node: this });
+            }
+        );
+        this.closeAnimationDone.pipe(takeUntil(this.destroy$)).subscribe(() => {
+            this.tree.nodeCollapsed.emit({ owner: this.tree, node: this });
+            this.treeService.collapse(this.id);
+            this.cdr.markForCheck();
+        });
     }
 
     public ngAfterViewInit() {
     }
 
     public ngOnDestroy() {
+        super.ngOnDestroy();
     }
 
     private expand() {
@@ -145,13 +163,9 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationComponent implements
             this.treeService.expand(this.id);
             this.cdr.detectChanges();
             this.playOpenAnimation(
-                this.childrenContainer,
-                () => {
-                    this.tree.nodeExpanded.emit({ owner: this.tree, node: this });
-                }
+                this.childrenContainer
             );
         }
-
     }
 
     private collapse() {
@@ -167,17 +181,8 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationComponent implements
         this.tree.nodeCollapsing.emit(args);
         if (!args.cancel) {
             this.playCloseAnimation(
-                this.childrenContainer,
-                () => {
-                    this.tree.nodeCollapsed.emit({ owner: this.tree, node: this });
-                    this.treeService.collapse(this.id);
-                    this.cdr.markForCheck();
-                }
+                this.childrenContainer
             );
-            this.tree.nodeCollapsed.emit({
-                owner: this.tree,
-                node: this
-            });
         }
     }
 }

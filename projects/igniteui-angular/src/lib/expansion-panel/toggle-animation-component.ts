@@ -1,119 +1,179 @@
 import { AnimationBuilder, AnimationPlayer, AnimationReferenceMetadata, useAnimation } from '@angular/animations';
-import { ElementRef } from '@angular/core';
+import { Directive, ElementRef, EventEmitter, OnDestroy } from '@angular/core';
+import { noop, Subject } from 'rxjs';
 import { growVerIn, growVerOut } from '../animations/grow';
 
+/**@hidden @internal */
 export interface ToggleAnimationSettings {
     openAnimation: AnimationReferenceMetadata;
     closeAnimation: AnimationReferenceMetadata;
 }
+
 export interface ToggleAnimationOwner {
+    animationSettings: ToggleAnimationSettings;
+    openAnimationStart: EventEmitter<void>;
+    openAnimationDone: EventEmitter<void>;
+    closeAnimationStart: EventEmitter<void>;
+    closeAnimationDone: EventEmitter<void>;
     openAnimationPlayer: AnimationPlayer;
     closeAnimationPlayer: AnimationPlayer;
-    animationSettings: ToggleAnimationSettings;
-    builder: AnimationBuilder;
+    playOpenAnimation(element: ElementRef, onDone: () => void): void;
+    playCloseAnimation(element: ElementRef, onDone: () => void): void;
 }
-export abstract class ToggleAnimationComponent {
 
-    public animationSettings: ToggleAnimationSettings = {
+enum ANIMATION_TYPE {
+    OPEN = 'open',
+    CLOSE = 'close',
+}
+
+/**@hidden @internal */
+@Directive()
+// eslint-disable-next-line @angular-eslint/directive-class-suffix
+export abstract class ToggleAnimationPlayer implements ToggleAnimationOwner, OnDestroy {
+
+
+    /** @hidden @internal */
+    public openAnimationDone: EventEmitter<void> = new EventEmitter();
+    /** @hidden @internal */
+    public closeAnimationDone: EventEmitter<void> = new EventEmitter();
+    /** @hidden @internal */
+    public openAnimationStart: EventEmitter<void> = new EventEmitter();
+    /** @hidden @internal */
+    public closeAnimationStart: EventEmitter<void> = new EventEmitter();
+
+    public get animationSettings(): ToggleAnimationSettings {
+        return this._animationSettings;
+    }
+    public set animationSettings(value: ToggleAnimationSettings) {
+        this._animationSettings = value;
+    }
+
+    /** @hidden @internal */
+    public openAnimationPlayer: AnimationPlayer = null;
+
+    /** @hidden @internal */
+    public closeAnimationPlayer: AnimationPlayer = null;
+
+
+
+    protected destroy$: Subject<void> = new Subject();
+    protected players: Map<string, AnimationPlayer> = new Map();
+    protected _animationSettings: ToggleAnimationSettings = {
         openAnimation: growVerIn,
         closeAnimation: growVerOut
     };
 
-    private openAnimationPlayer: AnimationPlayer = null;
-    private closeAnimationPlayer: AnimationPlayer = null;
+    private _defaultClosedCallback = noop;
+    private _defaultOpenedCallback = noop;
+    private onClosedCallback: () => any = this._defaultClosedCallback;
+    private onOpenedCallback: () => any = this._defaultOpenedCallback;
 
     constructor(protected builder: AnimationBuilder) {
     }
 
-    protected playOpenAnimation(targetElement: ElementRef, callback: () => void, animationOwner?: ToggleAnimationOwner) {
-        if (!targetElement) { // if not body element is passed, there is nothing to animate
-            return;
-        }
-
-        if (!animationOwner) {
-            animationOwner = (this as unknown as ToggleAnimationOwner);
-        }
-
-        // if no AnimationPlayer is initialized, create one
-        if (!animationOwner.openAnimationPlayer) {
-            const animation = useAnimation(animationOwner.animationSettings.openAnimation);
-            const animationBuilder = animationOwner.builder.build(animation);
-            animationOwner.openAnimationPlayer = animationBuilder.create(targetElement.nativeElement);
-            animationOwner.openAnimationPlayer.onDone(() => {
-                callback();
-                if (animationOwner.openAnimationPlayer) {
-                    animationOwner.openAnimationPlayer.reset();
-                    animationOwner.openAnimationPlayer = null;
-                }
-
-                if (animationOwner.closeAnimationPlayer && animationOwner.closeAnimationPlayer.hasStarted()) {
-                    animationOwner.closeAnimationPlayer.reset();
-                }
-            });
-        }
-
-        // if player has already started, do nothing
-        if (animationOwner.openAnimationPlayer.hasStarted()) {
-            return;
-        }
-
-        //  if there is a closing animation already playing, start open animation from where closing has reached
-        //  and remove closing animation
-        if (animationOwner.closeAnimationPlayer && animationOwner.closeAnimationPlayer.hasStarted()) {
-            //  TODO: This assumes opening and closing animations are mirrored.
-            const position = 1 - animationOwner.closeAnimationPlayer.getPosition();
-            animationOwner.closeAnimationPlayer.reset();
-            animationOwner.closeAnimationPlayer = null;
-            animationOwner.openAnimationPlayer.init();
-            animationOwner.openAnimationPlayer.setPosition(position);
-        }
-
-        animationOwner.openAnimationPlayer.play();
+    /** @hidden @internal */
+    public playOpenAnimation(targetElement: ElementRef, onDone?: () => void): void {
+        this.startPlayer(ANIMATION_TYPE.OPEN, targetElement, onDone || this._defaultOpenedCallback);
     }
 
-    protected playCloseAnimation(targetElement: ElementRef, callback: () => void, animationOwner?: ToggleAnimationOwner) {
-        if (!targetElement) { // if not body element is passed, there is nothing to animate
+    /** @hidden @internal */
+    public playCloseAnimation(targetElement: ElementRef, onDone?: () => void): void {
+        this.startPlayer(ANIMATION_TYPE.CLOSE, targetElement, onDone || this._defaultClosedCallback);
+    }
+    public ngOnDestroy() {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
+
+    private startPlayer(type: ANIMATION_TYPE, targetElement: ElementRef, callback: () => void): void {
+        if (!targetElement) { // if no element is passed, there is nothing to animate
             return;
         }
 
-        if (!animationOwner) {
-            animationOwner = (this as unknown as ToggleAnimationOwner);
+        let target = this.getPlayer(type);
+        if (!target) {
+            target = this.initializePlayer(type, targetElement, callback);
         }
 
-        // if no AnimationPlayer is initialized, create one
-        if (!animationOwner.closeAnimationPlayer) {
-            const animation = useAnimation(animationOwner.animationSettings.closeAnimation);
-            const animationBuilder = animationOwner.builder.build(animation);
-            animationOwner.closeAnimationPlayer = animationBuilder.create(targetElement.nativeElement);
-            animationOwner.closeAnimationPlayer.onDone(() => {
-                callback();
-                if (animationOwner.closeAnimationPlayer) {
-                    animationOwner.closeAnimationPlayer.reset();
-                    animationOwner.closeAnimationPlayer = null;
-                }
-
-                if (animationOwner.openAnimationPlayer && animationOwner.openAnimationPlayer.hasStarted()) {
-                    animationOwner.openAnimationPlayer.reset();
-                }
-            });
-        }
-
-        // if player has already started, do nothing
-        if (animationOwner.closeAnimationPlayer.hasStarted()) {
+        if (target.hasStarted()) {
             return;
         }
 
-        //  if there is an opening animation already playing, start close animation from where opening has reached
-        //  and remove opening animation
-        if (animationOwner.openAnimationPlayer && animationOwner.openAnimationPlayer.hasStarted()) {
-            //  TODO: This assumes opening and closing animations are mirrored.
-            const position = 1 - animationOwner.openAnimationPlayer.getPosition();
-            animationOwner.openAnimationPlayer.reset();
-            animationOwner.openAnimationPlayer = null;
-            animationOwner.closeAnimationPlayer.init();
-            animationOwner.closeAnimationPlayer.setPosition(position);
-        }
+        const targetEmitter = type === ANIMATION_TYPE.OPEN ? this.openAnimationStart : this.closeAnimationStart;
+        targetEmitter.emit();
+        target.play();
+    }
 
-        animationOwner.closeAnimationPlayer.play();
+    private initializePlayer(type: ANIMATION_TYPE, targetElement: ElementRef, callback: () => void): AnimationPlayer {
+        const oppositeType = type === ANIMATION_TYPE.OPEN ? ANIMATION_TYPE.CLOSE : ANIMATION_TYPE.OPEN;
+        const animationSettings = type === ANIMATION_TYPE.OPEN ?
+        this.animationSettings.openAnimation : this.animationSettings.closeAnimation;
+        const animation = useAnimation(animationSettings);
+        const animationBuilder = this.builder.build(animation);
+        const opposite = this.getPlayer(oppositeType);
+        let oppositePosition = 1;
+        if (opposite) {
+            if (opposite.hasStarted()) {
+                // .getPosition() still returns 0 sometimes, regardless of the fix for https://github.com/angular/angular/issues/18891;
+                oppositePosition = (opposite as any)._renderer.engine.players[0].getPosition();
+            }
+            this.cleanUpPlayer(oppositeType);
+        }
+        if (type === ANIMATION_TYPE.OPEN) {
+            this.openAnimationPlayer = animationBuilder.create(targetElement.nativeElement);
+        } else if (type === ANIMATION_TYPE.CLOSE) {
+            this.closeAnimationPlayer = animationBuilder.create(targetElement.nativeElement);
+        }
+        const target = this.getPlayer(type);
+        target.init();
+        this.getPlayer(type).setPosition(1 - oppositePosition);
+        if (type === ANIMATION_TYPE.OPEN) {
+            this.onOpenedCallback = callback;
+        } else if (type === ANIMATION_TYPE.CLOSE) {
+            this.onClosedCallback = callback;
+        }
+        const targetCallback = type === ANIMATION_TYPE.OPEN ? this.onOpenedCallback : this.onClosedCallback;
+        const targetEmitter = type === ANIMATION_TYPE.OPEN ? this.openAnimationDone : this.closeAnimationDone;
+        target.onDone(() => {
+            targetCallback();
+            targetEmitter.emit();
+            this.cleanUpPlayer(type);
+        });
+        return target;
+    }
+
+
+    private cleanUpPlayer(target: ANIMATION_TYPE) {
+        switch (target) {
+            case ANIMATION_TYPE.CLOSE:
+                if (this.closeAnimationPlayer != null) {
+                    this.closeAnimationPlayer.reset();
+                    this.closeAnimationPlayer.destroy();
+                    this.closeAnimationPlayer = null;
+                }
+                this.onClosedCallback = this._defaultClosedCallback;
+                break;
+            case ANIMATION_TYPE.OPEN:
+                if (this.openAnimationPlayer != null) {
+                    this.openAnimationPlayer.reset();
+                    this.openAnimationPlayer.destroy();
+                    this.openAnimationPlayer = null;
+                }
+                this.onOpenedCallback = this._defaultOpenedCallback;
+                break;
+            default:
+                break;
+        }
+    }
+
+    private getPlayer(type: ANIMATION_TYPE): AnimationPlayer {
+        switch (type) {
+            case ANIMATION_TYPE.OPEN:
+                return this.openAnimationPlayer;
+            case ANIMATION_TYPE.CLOSE:
+                return this.closeAnimationPlayer;
+            default:
+                return null;
+        }
     }
 }

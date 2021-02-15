@@ -9,11 +9,10 @@ import {
     AfterContentInit
 } from '@angular/core';
 import { AnimationBuilder } from '@angular/animations';
-import { growVerOut, growVerIn } from '../animations/main';
 import { IgxExpansionPanelBodyComponent } from './expansion-panel-body.component';
 import { IgxExpansionPanelHeaderComponent } from './expansion-panel-header.component';
 import { IGX_EXPANSION_PANEL_COMPONENT, IgxExpansionPanelBase, IExpansionPanelEventArgs } from './expansion-panel.common';
-import { ToggleAnimationComponent, ToggleAnimationSettings } from './toggle-animation-component';
+import { ToggleAnimationPlayer, ToggleAnimationSettings } from './toggle-animation-component';
 
 let NEXT_ID = 0;
 
@@ -22,7 +21,7 @@ let NEXT_ID = 0;
     templateUrl: 'expansion-panel.component.html',
     providers: [{ provide: IGX_EXPANSION_PANEL_COMPONENT, useExisting: IgxExpansionPanelComponent }]
 })
-export class IgxExpansionPanelComponent extends ToggleAnimationComponent implements IgxExpansionPanelBase, AfterContentInit {
+export class IgxExpansionPanelComponent extends ToggleAnimationPlayer implements IgxExpansionPanelBase, AfterContentInit {
     /**
      * Sets/gets the animation settings of the expansion panel component
      * Open and Close animation should be passed
@@ -55,10 +54,12 @@ export class IgxExpansionPanelComponent extends ToggleAnimationComponent impleme
      * ```
      */
     @Input()
-    public animationSettings: ToggleAnimationSettings = {
-        openAnimation: growVerIn,
-        closeAnimation: growVerOut
-    };
+    public get animationSettings(): ToggleAnimationSettings {
+        return this._animationSettings;
+    }
+    public set animationSettings(value: ToggleAnimationSettings) {
+        this._animationSettings = value;
+    }
 
     /**
      * Sets/gets the `id` of the expansion panel component.
