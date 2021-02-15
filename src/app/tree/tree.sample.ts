@@ -9,7 +9,7 @@ import { HIERARCHICAL_SAMPLE_DATA } from '../shared/sample-data';
     styleUrls: ['tree.sample.scss']
 })
 export class TreeSampleComponent {
-    @ViewChild(IgxTreeComponent, { read: IgxTreeComponent })
+    @ViewChild('tree1', { read: IgxTreeComponent })
     public tree: IgxTreeComponent;
 
     public animationDuration = 400;
