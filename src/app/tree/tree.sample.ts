@@ -18,6 +18,8 @@ export class TreeSampleComponent {
 
     public singleBranchExpand = false;
 
+    public dragDrop = false;
+
     public get animationSettings() {
         return  {
             openAnimation: useAnimation(growVerIn, {

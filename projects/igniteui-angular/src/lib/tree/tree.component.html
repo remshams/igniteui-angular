@@ -1,3 +1,14 @@
 <div class="tree__root">
-    <ng-content select="igx-tree-node, igx-tree-nested-node"></ng-content>
+    <ng-container *ngTemplateOutlet="template"></ng-container>
 </div>
+
+<ng-template #nodeOutlet>
+    <ng-content select="igx-tree-node, igx-tree-nested-node"></ng-content>
+</ng-template>
+<ng-template #noDragTemplate>
+    <ng-template *ngTemplateOutlet="nodeOutlet"></ng-template>
+</ng-template>
+<ng-template #dragTemplate igxDrop>
+    <ng-template *ngTemplateOutlet="nodeOutlet"></ng-template>
+</ng-template>
+

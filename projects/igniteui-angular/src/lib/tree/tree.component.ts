@@ -1,16 +1,24 @@
 import { CommonModule } from '@angular/common';
-import { Component, QueryList, Input, Output, EventEmitter, ContentChild, Directive,
-    NgModule, TemplateRef, OnInit, AfterViewInit, ContentChildren, OnDestroy } from '@angular/core';
+import {
+    Component, QueryList, Input, Output, EventEmitter, ContentChild, Directive,
+    NgModule, TemplateRef, OnInit, AfterViewInit, ContentChildren, OnDestroy, ViewChild, ChangeDetectorRef
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subject } from 'rxjs';
+import { takeUntil, takeWhile } from 'rxjs/operators';
 import { growVerIn, growVerOut } from '../animations/grow';
 import { IgxCheckboxModule } from '../checkbox/checkbox.component';
 import { IgxSelectionAPIService } from '../core/selection';
+import { IDragBaseEventArgs, IDragStartEventArgs, IgxDropDirective } from '../directives/drag-drop/drag-drop.directive';
 import { IgxExpansionPanelModule } from '../expansion-panel/public_api';
 import { ToggleAnimationSettings } from '../expansion-panel/toggle-animation-component';
 import { IgxIconModule } from '../icon/public_api';
 import { IgxInputGroupModule } from '../input-group/public_api';
-import { IGX_TREE_COMPONENT, IGX_TREE_SELECTION_TYPE, IgxTree, ITreeNodeToggledEventArgs,
-    ITreeNodeTogglingEventArgs, ITreeNodeSelectionEvent, IgxTreeNode, IgxTreeSearchResolver } from './common';
+import {
+    IGX_TREE_COMPONENT, IGX_TREE_SELECTION_TYPE, IgxTree, ITreeNodeToggledEventArgs,
+    ITreeNodeTogglingEventArgs, ITreeNodeSelectionEvent, IgxTreeNode, IgxTreeSearchResolver
+} from './common';
+import { IgxNodeDragModule } from './tree-drag.directive';
 import { IgxTreeNodeComponent } from './tree-node/tree-node.component';
 import { IgxTreeService } from './tree.service';
 
@@ -34,7 +42,7 @@ export class IgxTreeExpandIndicatorDirective {
     styleUrls: ['tree.component.scss'],
     providers: [
         IgxTreeService,
-        { provide: IGX_TREE_COMPONENT, useExisting: IgxTreeComponent}
+        { provide: IGX_TREE_COMPONENT, useExisting: IgxTreeComponent }
     ]
 })
 export class IgxTreeComponent implements IgxTree, OnInit, AfterViewInit, OnDestroy {
@@ -73,18 +81,52 @@ export class IgxTreeComponent implements IgxTree, OnInit, AfterViewInit, OnDestr
     @ContentChild(IgxTreeExpandIndicatorDirective, { read: TemplateRef })
     public expandIndicator: TemplateRef<any>;
 
+
+    @Input()
+    public get dragDrop(): boolean {
+        return this._dragDrop;
+    };
+
+    public set dragDrop(val: boolean) {
+        this._dragDrop = val;
+        if (this._dragDrop) {
+            this.subscribeDragEvents();
+        }
+    }
+
+
+    @ViewChild(IgxDropDirective, { read: IgxDropDirective })
+    public dropDirective: IgxDropDirective;
+
     @ContentChildren(IgxTreeNodeComponent, { descendants: true })
     private nodes: QueryList<IgxTreeNodeComponent<any>>;
 
+    @ViewChild('dragTemplate', { read: TemplateRef })
+    private dragTemplate: TemplateRef<any>;
+
+    @ViewChild('noDragTemplate', { read: TemplateRef })
+    private noDragTemplate: TemplateRef<any>;
+
     public id = `tree-${init_id++}`;
 
-    constructor(private selectionService: IgxSelectionAPIService, private treeService: IgxTreeService) {
+    private _currentNode: IgxTreeNode<any> = null;
+    private unsub$: Subject<any> = new Subject();
+    private destroy$: Subject<any> = new Subject();
+    private _nodeDragged: any = false;
+    private _dragDrop = false;
+
+    constructor(private selectionService: IgxSelectionAPIService, private treeService: IgxTreeService, private cdr: ChangeDetectorRef) {
         this.treeService.register(this);
     }
 
-    public expandAll(nodes: IgxTreeNode<any>[]) {}
-    public collapseAll(nodes: IgxTreeNode<any>[]) {}
-    public selectAll(nodes: IgxTreeNode<any>[]) {}
+    /** @hidden @internal */
+    public get template(): TemplateRef<any> {
+        return this.dragDrop ? this.dragTemplate : this.noDragTemplate;
+    }
+
+    public expandAll(nodes: IgxTreeNodeComponent<any>[]) { }
+    public collapseAll(nodes: IgxTreeNodeComponent<any>[]) { }
+    public selectAll(nodes: IgxTreeNodeComponent<any>[]) { }
 
     public isNodeSelected(node: IgxTreeNodeComponent<any>): boolean {
         return this.selectionService.get(this.id).has(node.id);
@@ -100,14 +142,60 @@ export class IgxTreeComponent implements IgxTree, OnInit, AfterViewInit, OnDestr
         this.selectionService.set(this.id, new Set());
     }
     public ngAfterViewInit() {
-
+        if (this.dragDrop) {
+            this.subscribeDragEvents();
+        }
     }
 
     public ngOnDestroy() {
         this.selectionService.clear(this.id);
+        this.destroy$.next();
+        this.destroy$.complete();
+        this.unsub$.next();
+        this.unsub$.complete();
     }
 
-    private _comparer = <T>(data: T, node: IgxTreeNodeComponent<T>, ) => node.data === data;
+    public markForCheck() {
+        this.cdr.markForCheck();
+    }
+
+    private _comparer = <T>(data: T, node: IgxTreeNodeComponent<T>,) => node.data === data;
+
+    private subscribeDragEvents() {
+        this.unsub$.next();
+        this.nodes.changes.pipe(takeUntil(this.destroy$)).subscribe(() => {
+            this.nodes.forEach(node => {
+                node.dragEnd.pipe(takeUntil(this.unsub$)).subscribe(event => this.handleDragEnd(event, node));
+                node.dragStart.pipe(takeUntil(this.unsub$)).subscribe(event => this.handleDragStart(event, node));
+                node.mouseEnter.pipe(takeUntil(this.unsub$), takeWhile(() => this._nodeDragged)).subscribe(() => {
+                    this.handleMouseEnter(node);
+                });
+                node.mouseLeave.pipe(takeUntil(this.unsub$), takeWhile(() => this._nodeDragged)).subscribe(() =>
+                    this.handleMouseLeave(node)
+                );
+            });
+        });
+    }
+
+    private handleMouseEnter(node: IgxTreeNode<any>) {
+        this._currentNode = node;
+        console.log(this._currentNode.data);
+    }
+
+    private handleMouseLeave(node: IgxTreeNode<any>) {
+
+    }
+
+    private handleDragStart(event: IDragStartEventArgs, node: IgxTreeNodeComponent<any>) {
+        this._nodeDragged = true;
+    }
+
+    private handleDragEnd(event: IDragBaseEventArgs, node: IgxTreeNodeComponent<any>) {
+        this._nodeDragged = false;
+    }
+
+
+
 }
 
 /**
@@ -126,7 +214,8 @@ export class IgxTreeComponent implements IgxTree, OnInit, AfterViewInit, OnDestr
         IgxIconModule,
         IgxInputGroupModule,
         IgxCheckboxModule,
-        IgxExpansionPanelModule
+        IgxExpansionPanelModule,
+        IgxNodeDragModule
     ],
     exports: [
         IgxTreeSelectMarkerDirective,
@@ -136,7 +225,8 @@ export class IgxTreeComponent implements IgxTree, OnInit, AfterViewInit, OnDestr
         IgxIconModule,
         IgxInputGroupModule,
         IgxCheckboxModule,
-        IgxExpansionPanelModule
+        IgxExpansionPanelModule,
+        IgxNodeDragModule
     ]
 })
 export class IgxTreeModule {

@@ -4,10 +4,14 @@ import {
     OnDestroy, Input, Inject, ViewChild, TemplateRef, AfterViewInit, QueryList, ContentChildren, Optional, SkipSelf,
     HostBinding,
     ElementRef,
-    ChangeDetectorRef
+    ChangeDetectorRef,
+    Output,
+    EventEmitter,
+    HostListener
 } from '@angular/core';
 import { takeUntil } from 'rxjs/operators';
 import { IgxSelectionAPIService } from '../../core/selection';
+import { IgxDragDirective } from '../../directives/drag-drop/drag-drop.directive';
 import { ToggleAnimationPlayer, ToggleAnimationSettings } from '../../expansion-panel/toggle-animation-component';
 import { IGX_TREE_COMPONENT, IgxTree, IgxTreeNode, IGX_TREE_NODE_COMPONENT, ITreeNodeTogglingEventArgs } from '../common';
 import { IgxTreeService } from '../tree.service';
@@ -39,6 +43,7 @@ let nodeId = 0;
     ]
 })
 export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements IgxTreeNode<T>, OnInit, AfterViewInit, OnDestroy {
+
     @Input()
     public data: T;
 
@@ -60,6 +65,9 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements Ig
     @ContentChildren(IGX_TREE_NODE_COMPONENT, { read: IGX_TREE_NODE_COMPONENT })
     public children: QueryList<IgxTreeNode<any>>;
 
+    @ViewChild(IgxDragDirective, { read: IgxDragDirective })
+    public dragDirective: IgxDragDirective;
+
     @ViewChild('defaultSelect', { read: TemplateRef, static: true })
     private _defaultSelectMarker: TemplateRef<any>;
 
@@ -69,6 +77,21 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements Ig
     @ViewChild('childrenContainer', { read: ElementRef })
     private childrenContainer: ElementRef;
 
+    public mouseEnter: EventEmitter<IgxTreeNode<any>> = new EventEmitter<IgxTreeNode<any>>();
+
+    public mouseLeave: EventEmitter<IgxTreeNode<any>> = new EventEmitter<IgxTreeNode<any>>();
+
+    /** @hidden @internal */
+    public dragStart = new EventEmitter();
+
+    /** @hidden @internal */
+    public dragEnd = new EventEmitter();
+
+    /** @hidden @internal */
+    public get nativeElement(): HTMLElement {
+        return this.elementRef.nativeElement;
+    }
+
     public inEdit = false;
 
     public id = `igxTreeNode_${nodeId++}`;
@@ -76,6 +99,7 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements Ig
     constructor(
         @Inject(IGX_TREE_COMPONENT) public tree: IgxTree,
         protected selectionService: IgxSelectionAPIService,
+        private elementRef: ElementRef,
         protected treeService: IgxTreeService,
         protected cdr: ChangeDetectorRef,
         protected builder: AnimationBuilder,
@@ -126,6 +150,21 @@ export class IgxTreeNodeComponent<T> extends ToggleAnimationPlayer implements Ig
         return {
             $implicit: this
         };
+    }
+
+
+    /** @hidden @internal */
+    @HostListener('igxDragOver')
+    @HostListener('dragenter')
+    public emitEnter() {
+        console.log('mouseenter:', this.id);
+        this.mouseEnter.emit(this);
+    }
+
+    /** @hidden @internal */
+    @HostListener('mouseleave')
+    public emitLeave() {
+        this.mouseLeave.emit(this);
     }
 
     public ngOnInit() {

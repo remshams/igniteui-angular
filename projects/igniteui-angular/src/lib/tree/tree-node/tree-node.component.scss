@@ -4,6 +4,11 @@
     padding-left: 16px;
 }
 
+.igx-tree-node__wrapper {
+    display: flex;
+    flex-direction: column;
+}
+
 .igx-tree-node__header {
     display: flex;
     flex-direction: row;

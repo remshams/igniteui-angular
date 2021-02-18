@@ -12,6 +12,7 @@ export interface IgxTree {
     selectMarker: TemplateRef<any>;
     expandIndicator: TemplateRef<any>;
     animationSettings: ToggleAnimationSettings;
+    dragDrop: boolean;
     nodeExpanding: EventEmitter<ITreeNodeTogglingEventArgs>;
     nodeExpanded: EventEmitter<ITreeNodeToggledEventArgs>;
     nodeCollapsing: EventEmitter<ITreeNodeTogglingEventArgs>;
@@ -20,6 +21,7 @@ export interface IgxTree {
     collapseAll(nodes: IgxTreeNode<any>[]): void;
     selectAll(node: IgxTreeNode<any>[]): void;
     findNodes(searchTerm: any, comparer?: IgxTreeSearchResolver): IgxTreeNode<any>[] | null;
+    markForCheck(): void;
 }
 
 // Item interfaces
