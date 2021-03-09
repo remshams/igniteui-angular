@@ -7,9 +7,11 @@ import {
     HostListener,
     Inject,
     Input,
+    OnChanges,
     OnDestroy,
     Optional,
     Self,
+    SimpleChanges,
 } from '@angular/core';
 import {
     AbstractControl,
@@ -61,7 +63,7 @@ export enum IgxInputState {
     selector: '[igxInput]',
     exportAs: 'igxInput',
 })
-export class IgxInputDirective implements AfterViewInit, OnDestroy {
+export class IgxInputDirective implements OnChanges, AfterViewInit, OnDestroy {
     /**
      * Sets/gets whether the `"igx-input-group__input"` class is added to the host element.
      * Default value is `false`.
@@ -98,6 +100,7 @@ export class IgxInputDirective implements AfterViewInit, OnDestroy {
     private _valid = IgxInputState.INITIAL;
     private _statusChanges$: Subscription;
     private _fileNames: string;
+    private _disabled = false;
 
     constructor(
         public inputGroup: IgxInputGroupBase,
@@ -108,7 +111,7 @@ export class IgxInputDirective implements AfterViewInit, OnDestroy {
         protected formControl: FormControlName,
         protected element: ElementRef<HTMLInputElement>,
         protected cdr: ChangeDetectorRef
-    ) {}
+    ) { }
 
     private get ngControl(): NgControl {
         return this.ngModel ? this.ngModel : this.formControl;
@@ -153,8 +156,9 @@ export class IgxInputDirective implements AfterViewInit, OnDestroy {
      */
     @Input()
     public set disabled(value: boolean) {
-        this.nativeElement.disabled = value;
-        this.inputGroup.disabled = value;
+        // handle case when disabled attr is set with no value
+        this._disabled = value != null && `${value}` !== 'false';
+        this.inputGroup.disabled = this._disabled;
     }
     /**
      * Gets the `disabled` property
@@ -167,7 +171,10 @@ export class IgxInputDirective implements AfterViewInit, OnDestroy {
      * ```
      */
     public get disabled() {
-        return this.nativeElement.hasAttribute('disabled');
+        if (this.ngControl && this.ngControl.disabled !== null) {
+            return this.ngControl.disabled;
+        }
+        return this._disabled = this.nativeElement.disabled;
     }
 
     /**
@@ -254,13 +261,18 @@ export class IgxInputDirective implements AfterViewInit, OnDestroy {
     }
 
     /** @hidden @internal */
+    public ngOnChanges(changes: SimpleChanges): void {
+        if (changes['disabled']) {
+            this.disabled = this.nativeElement.disabled;
+            this.inputGroup.disabled = this.disabled;
+        }
+    }
+
+    /** @hidden @internal */
     public ngAfterViewInit() {
         this.inputGroup.hasPlaceholder = this.nativeElement.hasAttribute(
             'placeholder'
         );
-        this.inputGroup.disabled =
-            this.inputGroup.disabled ||
-            this.nativeElement.hasAttribute('disabled');
         this.inputGroup.isRequired = this.nativeElement.hasAttribute(
             'required'
         );
@@ -342,8 +354,8 @@ export class IgxInputDirective implements AfterViewInit, OnDestroy {
                 if (!this.disabled && (this.ngControl.control.touched || this.ngControl.control.dirty)) {
                     // the control is not disabled and is touched or dirty
                     this._valid = this.ngControl.invalid ?
-                                  IgxInputState.INVALID : this.focused ? IgxInputState.VALID :
-                                  IgxInputState.INITIAL;
+                        IgxInputState.INVALID : this.focused ? IgxInputState.VALID :
+                            IgxInputState.INITIAL;
                 } else {
                     //  if control is untouched, pristine, or disabled its state is initial. This is when user did not interact
                     //  with the input or when form/control is reset
@@ -449,8 +461,8 @@ export class IgxInputDirective implements AfterViewInit, OnDestroy {
     private checkNativeValidity() {
         if (!this.disabled && this._hasValidators()) {
             this._valid = this.nativeElement.checkValidity() ?
-                            this.focused ? IgxInputState.VALID : IgxInputState.INITIAL :
-                            IgxInputState.INVALID;
+                this.focused ? IgxInputState.VALID : IgxInputState.INITIAL :
+                IgxInputState.INVALID;
         }
     }
 

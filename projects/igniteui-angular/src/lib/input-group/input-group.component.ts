@@ -13,6 +13,8 @@ import {
     Optional,
     AfterContentInit,
     Renderer2,
+    OnChanges,
+    SimpleChanges,
 } from '@angular/core';
 import { IgxHintDirective } from '../directives/hint/hint.directive';
 import {
@@ -31,7 +33,6 @@ import {
     DisplayDensityBase
 } from '../core/displayDensity';
 import { IgxInputGroupBase } from './input-group.common';
-import { DeprecateProperty } from '../core/deprecateDecorators';
 import { IgxInputGroupType, IGX_INPUT_GROUP_TYPE } from './inputGroupType';
 import { IInputResourceStrings } from '../core/i18n/input-resources';
 import { CurrentResourceStrings } from '../core/i18n/resources';
@@ -57,15 +58,15 @@ export type IgxInputGroupTheme = (typeof IgxInputGroupTheme)[keyof typeof IgxInp
         { provide: IgxInputGroupBase, useExisting: IgxInputGroupComponent },
     ],
 })
-export class IgxInputGroupComponent extends DisplayDensityBase implements IgxInputGroupBase, AfterContentInit {
+export class IgxInputGroupComponent extends DisplayDensityBase implements OnChanges, IgxInputGroupBase, AfterContentInit {
     /**
      * Sets the resource strings.
      * By default it uses EN resources.
      */
-   @Input()
-   public set resourceStrings(value: IInputResourceStrings) {
-       this._resourceStrings = Object.assign({}, this._resourceStrings, value);
-   }
+    @Input()
+    public set resourceStrings(value: IInputResourceStrings) {
+        this._resourceStrings = Object.assign({}, this._resourceStrings, value);
+    }
 
     /**
      * Returns the resource strings.
@@ -106,9 +107,23 @@ export class IgxInputGroupComponent extends DisplayDensityBase implements IgxInp
      * <igx-input-group [disabled]="'true'"></igx-input-group>
      * ```
      */
-    @HostBinding('class.igx-input-group--disabled')
+    public get disabled(): boolean {
+        return this._disabled;
+    }
+
     @Input()
-    public disabled = false;
+    @HostBinding('class.igx-input-group--disabled')
+    public set disabled(value: boolean) {
+        // handle case when disabled attr is set with no value
+        this._disabled = value != null && `${value}` !== 'false';
+        if (this.input) {
+            if (this._disabled) {
+                this.renderer.setAttribute(this.input.nativeElement, 'disabled', '');
+            } else {
+                this.renderer.removeAttribute(this.input.nativeElement, 'disabled');
+            }
+        }
+    }
 
     /**
      * Prevents automatically focusing the input when clicking on other elements in the input group (e.g. prefix or suffix).
@@ -137,6 +152,7 @@ export class IgxInputGroupComponent extends DisplayDensityBase implements IgxInp
 
     private _type: IgxInputGroupType = null;
     private _filled = false;
+    private _disabled = false;
     private _variant: IgxInputGroupTheme;
     private _resourceStrings = CurrentResourceStrings.InputResStrings;
 
@@ -268,6 +284,15 @@ export class IgxInputGroupComponent extends DisplayDensityBase implements IgxInp
     }
 
     /** @hidden @internal */
+    public ngOnChanges(changes: SimpleChanges): void {
+        const disabledChange = changes['disabled'];
+        // if disabled attr is set without value, we have to update the input's disabled member to be true
+        if (disabledChange && this.input && disabledChange.currentValue !== this.disabled) {
+            this.input.disabled = this.disabled;
+        }
+    }
+
+    /** @hidden @internal */
     public hintClickHandler(event: MouseEvent) {
         event.stopPropagation();
     }
@@ -275,7 +300,7 @@ export class IgxInputGroupComponent extends DisplayDensityBase implements IgxInp
     /** @hidden @internal */
     public ngAfterContentInit() {
         if (!this.theme) {
-            if(isIE()) {
+            if (isIE()) {
                 this._variant = IgxInputGroupTheme.Material;
             } else {
                 this._variant = this.document.defaultView
@@ -473,4 +498,4 @@ export class IgxInputGroupComponent extends DisplayDensityBase implements IgxInp
     imports: [CommonModule, IgxPrefixModule, IgxSuffixModule, IgxButtonModule, IgxIconModule],
 })
 
-export class IgxInputGroupModule {}
+export class IgxInputGroupModule { }
