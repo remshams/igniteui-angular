@@ -8,12 +8,11 @@
     [indeterminate]="indeterminate"
     [checked]="checked"
     [required]="required"
-    [attr.aria-checked]="checked"
+    [attr.aria-checked]="ariaChecked"
     [attr.aria-labelledby]="ariaLabelledBy"
     [attr.aria-label]="ariaLabel"
     (change)="_onCheckboxChange($event)"
     (click)="_onCheckboxClick($event)"
-    (focus)="onFocus()"
     (blur)="onBlur()" />
 
 <div

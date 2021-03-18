@@ -156,55 +156,16 @@
             padding: map-get($grid-toolbar-padding-rtl, 'comfortable');
         }
 
-        %igx-button--outlined,
-        %igx-button--raised,
-        %igx-button--flat,
-        %igx-button--icon{
+        [igxButton] {
             margin-#{$left}: rem(16);
-        }
-
-        %igx-grid-toolbar__button-space {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-
-            span {
-                &:empty {
-                    display: none;
-                }
-            }
-
-            > * {
-                margin-#{$left}: rem(8px);
-
-                &:first-child {
-                    margin-#{$left}: 0;
-                }
-            }
         }
 
         &[dir='rtl'] {
             text-align: #{$right};
 
-            %igx-button--outlined,
-            %igx-button--raised,
-            %igx-button--flat,
-            %igx-button--icon{
+            [igxButton] {
                 margin-#{$left}: 0;
                 margin-#{$right}: rem(8);
-            }
-
-            %igx-grid-toolbar__button-space {
-                text-align: #{$right};
-
-                > * {
-                    margin-#{$left}: 0;
-                    margin-#{$right}: rem(8px);
-                }
-
-                > *:last-child {
-                    margin-#{$left}: 0;
-                }
             }
         }
     }
@@ -219,10 +180,7 @@
             padding: map-get($grid-toolbar-padding-rtl, 'cosy');
         }
 
-        %igx-button--outlined,
-        %igx-button--raised,
-        %igx-button--flat,
-        %igx-button--icon{
+        [igxButton] {
             margin-#{$left}: rem(12);
         }
     }
@@ -237,10 +195,7 @@
             padding: map-get($grid-toolbar-padding-rtl, 'compact');
         }
 
-        %igx-button--outlined,
-        %igx-button--raised,
-        %igx-button--flat,
-        %igx-button--icon{
+        [igxButton] {
             margin-#{$left}: rem(8);
         }
     }

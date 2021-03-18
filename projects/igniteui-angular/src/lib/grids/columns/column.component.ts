@@ -35,7 +35,8 @@ import { IgxGridHeaderComponent } from '../headers/grid-header.component';
 import { IgxGridFilteringCellComponent } from '../filtering/base/grid-filtering-cell.component';
 import { IgxGridHeaderGroupComponent } from '../headers/grid-header-group.component';
 import { getNodeSizeViaRange } from '../../core/utils';
-import { IgxSummaryOperand, IgxNumberSummaryOperand, IgxDateSummaryOperand } from '../summaries/grid-summary';
+import { IgxSummaryOperand, IgxNumberSummaryOperand, IgxDateSummaryOperand,
+    IgxCurrencySummaryOperand, IgxPercentSummaryOperand } from '../summaries/grid-summary';
 import {
     IgxCellTemplateDirective,
     IgxCellHeaderTemplateDirective,
@@ -78,7 +79,13 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
      * @memberof IgxColumnComponent
      */
     @Input()
-    public field: string;
+    set field(value: string) {
+        this._field = value;
+        this.hasNestedPath = value?.includes('.');
+    }
+    get field(): string {
+        return this._field;
+    }
     /**
      * Sets/gets the `header` value.
      * ```typescript
@@ -734,7 +741,7 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
     /**
      * @hidden
      */
-    get maxWidthPx() {
+    public get maxWidthPx() {
         const gridAvailableSize = this.grid.calcWidth;
         const isPercentageWidth = this.maxWidth && typeof this.maxWidth === 'string' && this.maxWidth.indexOf('%') !== -1;
         return isPercentageWidth ?  parseFloat(this.maxWidth) / 100 * gridAvailableSize : parseFloat(this.maxWidth);
@@ -743,7 +750,7 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
     /**
      * @hidden
      */
-    get maxWidthPercent() {
+    public get maxWidthPercent() {
         const gridAvailableSize = this.grid.calcWidth;
         const isPercentageWidth = this.maxWidth && typeof this.maxWidth === 'string' && this.maxWidth.indexOf('%') !== -1;
         return isPercentageWidth ?  parseFloat(this.maxWidth) : parseFloat(this.maxWidth) / gridAvailableSize * 100;
@@ -752,7 +759,7 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
     /**
      * @hidden
      */
-    get minWidthPx() {
+    public get minWidthPx() {
         const gridAvailableSize = this.grid.calcWidth;
         const isPercentageWidth = this.minWidth && typeof this.minWidth === 'string' && this.minWidth.indexOf('%') !== -1;
         return isPercentageWidth ?  parseFloat(this.minWidth) / 100 * gridAvailableSize : parseFloat(this.minWidth);
@@ -761,7 +768,7 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
     /**
      * @hidden
      */
-    get minWidthPercent() {
+    public get minWidthPercent() {
         const gridAvailableSize = this.grid.calcWidth;
         const isPercentageWidth = this.minWidth && typeof this.minWidth === 'string' && this.minWidth.indexOf('%') !== -1;
         return isPercentageWidth ?  parseFloat(this.minWidth) : parseFloat(this.minWidth) / gridAvailableSize * 100;
@@ -803,7 +810,7 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
      *
      * @memberof IgxColumnComponent
      */
-    get index(): number {
+    public get index(): number {
         return this.grid.columns.indexOf(this);
     }
 
@@ -962,7 +969,7 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
      *
      * @memberof IgxColumnComponent
      */
-    get defaultMinWidth(): string {
+    public get defaultMinWidth(): string {
         if (!this.grid) {
             return '80';
         }
@@ -1350,6 +1357,11 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
     public widthSetByUser: boolean;
 
     /**
+     * @hidden
+     */
+    public hasNestedPath: boolean;
+
+    /**
      * Returns the filteringExpressionsTree of the column.
      * ```typescript
      * let tree =  this.column.filteringExpressionsTree;
@@ -1482,6 +1494,7 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
         return this.field !== undefined && this.grid !== undefined && this.field === this.grid.primaryKey;
     }
 
+    private _field: string;
     private _calcWidth = null;
     private _columnPipeArgs: IColumnPipeArgs = { format: DEFAULT_DATE_FORMAT, digitsInfo: DEFAULT_DIGITS_INFO };
 
@@ -1533,6 +1546,12 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
                 case DataType.Date:
                     this.summaries = IgxDateSummaryOperand;
                     break;
+                case DataType.Currency:
+                    this.summaries = IgxCurrencySummaryOperand;
+                    break;
+                case DataType.Percent:
+                    this.summaries = IgxPercentSummaryOperand;
+                    break;
                 default:
                     this.summaries = IgxSummaryOperand;
                     break;
@@ -1544,6 +1563,8 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
                     this.filters = IgxBooleanFilteringOperand.instance();
                     break;
                 case DataType.Number:
+                case DataType.Currency:
+                case DataType.Percent:
                     this.filters = IgxNumberFilteringOperand.instance();
                     break;
                 case DataType.Date:
@@ -1743,7 +1764,6 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
         // TODO: Probably should the return type of the old functions
         // should be moved as a event parameter.
         const grid = (this.grid as any);
-
         if (this._pinned) {
             return false;
         }
@@ -1770,7 +1790,7 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
             return;
         }
 
-        grid.endEdit(true);
+        grid.endEdit(false);
 
         this._pinned = true;
         this.pinnedChange.emit(this._pinned);
@@ -1861,7 +1881,7 @@ export class IgxColumnComponent implements AfterContentInit, OnDestroy {
             return;
         }
 
-        this.grid.endEdit(true);
+        this.grid.endEdit(false);
 
         this._pinned = false;
         this.pinnedChange.emit(this._pinned);
