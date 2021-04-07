@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { first } from 'rxjs/operators';
 import { IGridEditDoneEventArgs, IGridEditEventArgs, IgxGridBaseDirective, IgxRowDirective, IRowDataEventArgs } from '../grid/public_api';
 import { GridType } from './grid.interface';
+import { Subject } from 'rxjs';
 
 export class IgxRow {
     public transactionState: any;
@@ -102,36 +103,26 @@ export class IgxCell {
         return args;
     }
 }
-
-@Injectable()
-export class IgxGridCRUDService {
+export class IgxCellCrudState {
+    private _cellEditingBlocked = false;
 
     public grid: IgxGridBaseDirective & GridType;
     public cell: IgxCell | null = null;
-    public row: IgxRow | null = null;
-    public isInCompositionMode = false;
-    public cancelAddMode = false;
 
+    public get cellEditingBlocked() {
+        return this._cellEditingBlocked;
+    }
 
-    /**
-     * @hidden @interal
-     */
-    // TODO: Consider changing the modifier to protected or private.
-    public addRowParent = null;
+    public set cellEditingBlocked(val: boolean) {
+        this._cellEditingBlocked = val;
+    }
 
-    private _cellEditingBlocked = false;
-    private _rowEditingBlocked = false;
+    public get cellInEditMode(): boolean {
+        return !!this.cell;
+    }
 
     public createCell(cell): IgxCell {
         return new IgxCell(cell.cellID, cell.rowIndex, cell.column, cell.value, cell.value, cell.row.rowData, cell.grid);
-    }
-
-    public createRow(cell: IgxCell): IgxRow {
-        return new IgxRow(cell.id.rowID, cell.rowIndex, cell.rowData, cell.grid);
-    }
-
-    public sameRow(rowID): boolean {
-        return this.row && this.row.id === rowID;
     }
 
     public sameCell(cell: IgxCell): boolean {
@@ -139,8 +130,67 @@ export class IgxGridCRUDService {
             this.cell.id.columnID === cell.id.columnID);
     }
 
-    public get cellInEditMode(): boolean {
-        return !!this.cell;
+    public beginCellEdit(newCell, event?: Event) {
+        const args = newCell.createEditEventArgs(false, event);
+        this.grid.cellEditEnter.emit(args);
+
+        this._cellEditingBlocked = args.cancel;
+        if (args.cancel) {
+            this.endCellEdit();
+        } else {
+            this.cell = newCell;
+        }
+
+    }
+
+    /** Exit cell edit mode */
+    public exitCellEdit(event?: Event): boolean {
+        if (!this.cell) {
+            return false;
+        }
+
+        const newValue = this.cell.castToNumber(this.cell.editValue);
+        const args = this.cell?.createDoneEditEventArgs(newValue, event);
+        this.cell.value = newValue;
+
+
+        this.grid.cellEditExit.emit(args);
+        this.endCellEdit();
+        return false;
+    }
+
+    /** Clears cell editing state */
+    public endCellEdit() {
+        this.cell = null;
+        this.cellEditingBlocked = false;
+    }
+
+    /** Returns whether the targeted cell is in edit mode */
+    public targetInEdit(rowIndex: number, columnIndex: number): boolean {
+        if (!this.cell) {
+            return false;
+        }
+        const res = this.cell.column.index === columnIndex && this.cell.rowIndex === rowIndex;
+        return res;
+    }
+}
+
+export class IgxRowCrudState extends IgxCellCrudState {
+    private _rowEditingBlocked = false;
+
+    public row: IgxRow | null = null;
+    public closeRowEditingOverlay = new Subject();
+
+    public get rowEditingBlocked() {
+        return this._rowEditingBlocked;
+    }
+
+    public set rowEditingBlocked(val: boolean) {
+        this._rowEditingBlocked = val;
+    }
+
+    public get primaryKey(): any {
+        return this.grid.primaryKey;
     }
 
     /**
@@ -155,56 +205,12 @@ export class IgxGridCRUDService {
         return this.grid.rowEditable;
     }
 
-    public get primaryKey(): any {
-        return this.grid.primaryKey;
+    public createRow(cell: IgxCell): IgxRow {
+        return new IgxRow(cell.id.rowID, cell.rowIndex, cell.rowData, cell.grid);
     }
 
-    public get cellEditingBlocked() {
-        return this._cellEditingBlocked;
-    }
-
-    public set cellEditingBlocked(val: boolean) {
-        this._cellEditingBlocked = val;
-    }
-
-    public get rowEditingBlocked() {
-        return this._rowEditingBlocked;
-    }
-
-    public set rowEditingBlocked(val: boolean) {
-        this._rowEditingBlocked = val;
-    }
-
-
-    public enterEditMode(cell, event?: Event) {
-        if (this.isInCompositionMode) {
-            return;
-        }
-
-        if (this.cellInEditMode) {
-            // TODO: case solely for f2/enter nav that uses enterEditMode as toggle. Refactor.
-            const canceled = this.endEdit(true, event);
-
-            if (!canceled || !this.cell) {
-                this.grid.tbody.nativeElement.focus();
-            }
-        } else {
-            if (cell?.row.addRow) {
-                this.beginAddRow(cell, event);
-                return;
-            }
-            /** Changing the reference with the new editable cell */
-            const newCell = this.createCell(cell);
-            if (this.rowEditing) {
-                const canceled = this.beginRowEdit(newCell, event);
-                if (!canceled) {
-                    this.beginCellEdit(newCell, event);
-                }
-
-            } else {
-                this.beginCellEdit(newCell, event);
-            }
-        }
+    public sameRow(rowID): boolean {
+        return this.row && this.row.id === rowID;
     }
 
     /** Clears cell and row editing state and closes row editing template if it is open */
@@ -212,65 +218,13 @@ export class IgxGridCRUDService {
         this.endCellEdit();
         if (this.grid.rowEditable) {
             this.endRowEdit();
-            this.grid.closeRowEditingOverlay();
+            this.closeRowEditingOverlay.next();
         }
-    }
-
-    /**
-     * Finishes the row transactions on the current row.
-     *
-     * @remarks
-     * If `commit === true`, passes them from the pending state to the data (or transaction service)
-     * @example
-     * ```html
-     * <button igxButton (click)="grid.endEdit(true)">Commit Row</button>
-     * ```
-     * @param commit
-     */
-     public endEdit(commit = true, event?: Event) {
-        let canceled = false;
-        if (!this.row && !this.cell) {
-            return;
-        }
-
-        if (this.row?.isAddRow) {
-            canceled = this.endAdd(commit, event);
-            return canceled;
-        }
-
-        if (commit) {
-            canceled = this.grid.gridAPI.submit_value(event);
-            if (canceled) {
-                return true;
-            }
-        } else {
-            this.exitCellEdit(event);
-        }
-
-        canceled = this.exitRowEdit(commit, event);
-        this.rowEditingBlocked = canceled;
-        if (canceled) {
-            return true;
-        }
-
-        const activeCell = this.grid.selectionService.activeElement;
-        if (event && activeCell) {
-            const rowIndex = activeCell.row;
-            const visibleColIndex = activeCell.layout ? activeCell.layout.columnVisibleIndex : activeCell.column;
-            this.grid.navigateTo(rowIndex, visibleColIndex);
-        }
-
-        return false;
     }
 
     /** Enters row edit mode */
     public beginRowEdit(newCell, event?: Event) {
         if (this.row && !this.sameRow(newCell.id.rowID)) {
-            this._rowEditingBlocked = this.endEdit(true, event);
-            if (this.rowEditingBlocked) {
-                return true;
-            }
-
             this.cell = newCell;
             this._rowEditingBlocked = false;
             this.endRowEdit();
@@ -317,7 +271,7 @@ export class IgxGridCRUDService {
 
         const nonCancelableArgs = row.createDoneEditEventArgs(rowEditArgs.oldValue, event);
         this.grid.rowEditExit.emit(nonCancelableArgs);
-        this.grid.closeRowEditingOverlay();
+        this.closeRowEditingOverlay.next();
     }
 
     /** Exit row edit mode */
@@ -338,75 +292,25 @@ export class IgxGridCRUDService {
         }
     }
 
-    /**
-     * @hidden
-     * @internal
-     */
-    public endRowEditTabStop(commit = true, event?: Event) {
-        const canceled = this.endEdit(commit, event);
-
-        if (canceled) {
-            return true;
-        }
-
-        const activeCell = this.grid.navigation.activeNode;
-        if (activeCell && activeCell.row !== -1) {
-            this.grid.tbody.nativeElement.focus();
-        }
-    }
-
     /** Clears row editing state */
     public endRowEdit() {
         this.row = null;
         this.rowEditingBlocked = false;
     }
+}
 
-    public beginCellEdit(newCell, event?: Event) {
-        const args = newCell.createEditEventArgs(false, event);
-        this.grid.cellEditEnter.emit(args);
+export class IgxRowAddCrudState extends IgxRowCrudState {
+    public isInCompositionMode = false;
+    public cancelAddMode = false;
 
-        this._cellEditingBlocked = args.cancel;
-        if (args.cancel) {
-            this.endCellEdit();
-        } else {
-            this.cell = newCell;
-        }
+    /**
+     * @hidden @interal
+     */
+    // TODO: Consider changing the modifier to protected or private.
+    public addRowParent = null;
 
-    }
-
-    /** Exit cell edit mode */
-    public exitCellEdit(event?: Event): boolean {
-        if (!this.cell) {
-            return false;
-        }
-
-        const newValue = this.cell.castToNumber(this.cell.editValue);
-        const args = this.cell?.createDoneEditEventArgs(newValue, event);
-        this.cell.value = newValue;
-
-
-        this.grid.cellEditExit.emit(args);
-        this.endCellEdit();
-        return false;
-    }
-
-    /** Clears cell editing state */
-    public endCellEdit() {
-        this.cell = null;
-        this.cellEditingBlocked = false;
-    }
-
-    /** Returns whether the targeted cell is in edit mode */
-    public targetInEdit(rowIndex: number, columnIndex: number): boolean {
-        if (!this.cell) {
-            return false;
-        }
-        const res = this.cell.column.index === columnIndex && this.cell.rowIndex === rowIndex;
-        return res;
-    }
-
-    /** Enters cell edit mode */
-    public beginAddRow(cell, event?: Event) {
+     /** Enters cell edit mode */
+     public beginAddRow(cell, event?: Event) {
         const newCell = this.createCell(cell);
         newCell.primaryKey = this.primaryKey;
         cell.enterAddMode = true;
@@ -473,7 +377,7 @@ export class IgxGridCRUDService {
             this.cancelAddMode = true;
         }
         this.endRowEdit();
-        this.grid.closeRowEditingOverlay();
+        this.closeRowEditingOverlay.next();
         this.grid.pipeTriggerNotifier.next();
         if (!this.cancelAddMode) {
             this.grid.cdr.detectChanges();
@@ -492,14 +396,6 @@ export class IgxGridCRUDService {
         this.grid.triggerPipes();
     }
 
-    /**
-     * @hidden
-     * @internal
-     * TODO: consider changing modifier
-     */
-     public _findRecordIndexInView(rec) {
-        return this.grid.dataView.findIndex(data => data[this.primaryKey] === rec[this.primaryKey]);
-    }
 
     private  _getParentRecordId() {
         if (this.addRowParent.asChild) {
@@ -508,5 +404,108 @@ export class IgxGridCRUDService {
             const spawnedForRecord = this.grid.gridAPI.get_rec_by_id(this.addRowParent.rowID);
             return spawnedForRecord?.parent?.rowID;
         }
+    }
+
+        /**
+         * @hidden
+         * @internal
+         * TODO: consider changing modifier
+         */
+    private _findRecordIndexInView(rec) {
+        return this.grid.dataView.findIndex(data => data[this.primaryKey] === rec[this.primaryKey]);
+    }
+}
+
+export class IgxBaseRowCrudState {
+
+}
+
+@Injectable()
+export class IgxGridCRUDService extends IgxRowAddCrudState {
+
+    public enterEditMode(cell, event?: Event) {
+        if (this.isInCompositionMode) {
+            return;
+        }
+
+        if (this.cellInEditMode) {
+            // TODO: case solely for f2/enter nav that uses enterEditMode as toggle. Refactor.
+            const canceled = this.endEdit(true, event);
+
+            if (!canceled || !this.cell) {
+                this.grid.tbody.nativeElement.focus();
+            }
+        } else {
+            if (cell?.row.addRow) {
+                this.beginAddRow(cell, event);
+                return;
+            }
+            /** Changing the reference with the new editable cell */
+            const newCell = this.createCell(cell);
+            if (this.rowEditing) {
+                if (this.row && !this.sameRow(newCell.id.rowID)) {
+                    this.rowEditingBlocked = this.endEdit(true, event);
+                    if (this.rowEditingBlocked) {
+                        return true;
+                    }
+                }
+
+                const canceled = this.beginRowEdit(newCell, event);
+                if (!canceled) {
+                    this.beginCellEdit(newCell, event);
+                }
+
+            } else {
+                this.beginCellEdit(newCell, event);
+            }
+        }
+    }
+
+
+    /**
+     * Finishes the row transactions on the current row.
+     *
+     * @remarks
+     * If `commit === true`, passes them from the pending state to the data (or transaction service)
+     * @example
+     * ```html
+     * <button igxButton (click)="grid.endEdit(true)">Commit Row</button>
+     * ```
+     * @param commit
+     */
+     public endEdit(commit = true, event?: Event) {
+        let canceled = false;
+        if (!this.row && !this.cell) {
+            return;
+        }
+
+        if (this.row?.isAddRow) {
+            canceled = this.endAdd(commit, event);
+            return canceled;
+        }
+
+        if (commit) {
+            canceled = this.grid.gridAPI.submit_value(event);
+            if (canceled) {
+                return true;
+            }
+        } else {
+            this.exitCellEdit(event);
+        }
+
+        canceled = this.exitRowEdit(commit, event);
+        this.rowEditingBlocked = canceled;
+        if (canceled) {
+            return true;
+        }
+
+        const activeCell = this.grid.selectionService.activeElement;
+        if (event && activeCell) {
+            const rowIndex = activeCell.row;
+            const visibleColIndex = activeCell.layout ? activeCell.layout.columnVisibleIndex : activeCell.column;
+            this.grid.navigateTo(rowIndex, visibleColIndex);
+        }
+
+        return false;
     }
 }

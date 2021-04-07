@@ -3293,6 +3293,7 @@ export abstract class IgxGridBaseDirective extends DisplayDensityBase implements
             });
 
         this.pipeTriggerNotifier.pipe(takeUntil(this.destroy$)).subscribe(() => this.pipeTrigger++);
+        this.crudService.closeRowEditingOverlay.pipe(takeUntil(this.destroy$)).subscribe(() => this.closeRowEditingOverlay());
 
         this.onPagingDone.pipe(destructor).subscribe(() => {
             this.crudService.endEdit(false);
@@ -4484,6 +4485,23 @@ export abstract class IgxGridBaseDirective extends DisplayDensityBase implements
             // vise-versa if developer set it to false we should call notifyChanges(false).
             // The parameter should default to false
             this.notifyChanges();
+        }
+    }
+
+    /**
+     * @hidden
+     * @internal
+     */
+    public endRowEditTabStop(commit = true, event?: Event) {
+        const canceled = this.crudService.endEdit(commit, event);
+
+        if (canceled) {
+            return true;
+        }
+
+        const activeCell = this.navigation.activeNode;
+        if (activeCell && activeCell.row !== -1) {
+            this.tbody.nativeElement.focus();
         }
     }
 
@@ -5821,16 +5839,6 @@ export abstract class IgxGridBaseDirective extends DisplayDensityBase implements
     /**
      * @hidden @internal
      */
-        public closeRowEditingOverlay() {
-        this.rowEditingOverlay.element.removeEventListener('wheel', this.rowEditingWheelHandler);
-        this.rowEditPositioningStrategy.isTopInitialPosition = null;
-        this.rowEditingOverlay.close();
-        this.rowEditingOverlay.element.parentElement.style.display = '';
-    }
-
-    /**
-     * @hidden @internal
-     */
     public toggleRowEditingOverlay(show) {
         const rowStyle = this.rowEditingOverlay.element.style;
         if (show) {
@@ -6875,6 +6883,13 @@ export abstract class IgxGridBaseDirective extends DisplayDensityBase implements
             return;
         }
         directive.scrollTo(goal);
+    }
+
+    private closeRowEditingOverlay() {
+        this.rowEditingOverlay.element.removeEventListener('wheel', this.rowEditingWheelHandler);
+        this.rowEditPositioningStrategy.isTopInitialPosition = null;
+        this.rowEditingOverlay.close();
+        this.rowEditingOverlay.element.parentElement.style.display = '';
     }
 
     private getColumnWidthSum(): number {
